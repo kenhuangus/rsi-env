@@ -1,0 +1,8 @@
+{
+  "backend": "openai",
+  "name": "Qwen/Qwen3.8-27B",
+  "base_url": "http://localhost:8000/v1",
+  "api_key_env": "VLLM_API_KEY",
+  "max_tokens": 81920,
+  "tinker_base_model": "Qwen/Qwen3.8-27B"
+}

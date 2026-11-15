@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 470" width="1000" height="470" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker>
+    <filter id="s" x="-5%" y="-5%" width="110%" height="120%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.10"/></filter>
+  </defs>
+  <rect width="1000" height="470" fill="#ffffff"/>
+  <text x="500" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#0f172a">Code map: paper concept → module</text>
+
+  <g font-size="12" filter="url(#s)">
+    <rect x="30" y="60" width="300" height="84" rx="10" fill="#0d9488"/>
+    <rect x="30" y="160" width="300" height="84" rx="10" fill="#ccfbf1" stroke="#0d9488"/>
+    <rect x="30" y="260" width="300" height="84" rx="10" fill="#ccfbf1" stroke="#0d9488"/>
+    <rect x="30" y="360" width="300" height="84" rx="10" fill="#ccfbf1" stroke="#0d9488"/>
+
+    <rect x="350" y="60" width="300" height="84" rx="10" fill="#fff7ed" stroke="#d97706"/>
+    <rect x="350" y="160" width="300" height="84" rx="10" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="350" y="260" width="300" height="84" rx="10" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="350" y="360" width="300" height="84" rx="10" fill="#dbeafe" stroke="#2563eb"/>
+
+    <rect x="670" y="60" width="300" height="84" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+    <rect x="670" y="160" width="300" height="84" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+    <rect x="670" y="260" width="300" height="84" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+    <rect x="670" y="360" width="300" height="84" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+  </g>
+  <g font-size="12" fill="#334155">
+    <text x="46" y="86" font-weight="700" fill="#ffffff" font-size="13">Experiment Controller</text>
+    <text x="46" y="106" fill="#ccfbf1" font-family="Consolas, monospace">runner.py · cli.py</text>
+    <text x="46" y="126" fill="#ccfbf1">round loop, Self/Teacher, reports</text>
+
+    <text x="46" y="186" font-weight="700" fill="#0f172a" font-size="13">Host Controller services</text>
+    <text x="46" y="206" font-family="Consolas, monospace">controller/host.py</text>
+    <text x="46" y="226">infer · local-eval · submit · feedback · incidents</text>
+
+    <text x="46" y="286" font-weight="700" fill="#0f172a" font-size="13">Versions · training · evaluation</text>
+    <text x="46" y="306" font-family="Consolas, monospace">versioning.py · training.py</text>
+    <text x="46" y="326" font-family="Consolas, monospace">evaluation.py</text>
+
+    <text x="46" y="386" font-weight="700" fill="#0f172a" font-size="13">Private benchmarks + metrics</text>
+    <text x="46" y="406" font-family="Consolas, monospace">benchmarks/suites.py · world.py</text>
+    <text x="46" y="426">avg@k · pass@k · all@k · verifiers</text>
+
+    <text x="366" y="86" font-weight="700" fill="#0f172a" font-size="13">Controlled interfaces</text>
+    <text x="366" y="106" font-family="Consolas, monospace">controller/server.py · envcli.py</text>
+    <text x="366" y="126">token HTTP endpoint + rsi CLI / Client</text>
+
+    <text x="366" y="186" font-weight="700" fill="#0f172a" font-size="13">Minimal harness H0 (editable)</text>
+    <text x="366" y="206" font-family="Consolas, monospace">harness_template/harness.py</text>
+    <text x="366" y="226">bash + compact, auto-compaction, extensions</text>
+
+    <text x="366" y="286" font-weight="700" fill="#0f172a" font-size="13">Sandbox tool runtime</text>
+    <text x="366" y="306" font-family="Consolas, monospace">runtime.py · worker.py</text>
+    <text x="366" y="326">persisted outputs, path guard, isolated workers</text>
+
+    <text x="366" y="386" font-weight="700" fill="#0f172a" font-size="13">Seven task prompts (Appendix B)</text>
+    <text x="366" y="406" font-family="Consolas, monospace">tasks.py</text>
+    <text x="366" y="426">Open-General · Capability-Directed · Bench-Guided</text>
+
+    <text x="686" y="86" font-weight="700" fill="#0f172a" font-size="13">Model backends</text>
+    <text x="686" y="106" font-family="Consolas, monospace">models/openai_compat.py</text>
+    <text x="686" y="126">vLLM/SGLang (e.g. Qwen3.8-27B target)</text>
+
+    <text x="686" y="186" font-weight="700" fill="#0f172a" font-size="13">External Teacher backend</text>
+    <text x="686" y="206" font-family="Consolas, monospace">models/anthropic_backend.py</text>
+    <text x="686" y="226">Claude via Anthropic SDK (streaming)</text>
+
+    <text x="686" y="286" font-weight="700" fill="#0f172a" font-size="13">Offline toy model</text>
+    <text x="686" y="306" font-family="Consolas, monospace">models/toy.py</text>
+    <text x="686" y="326">seeded, trainable, measurable</text>
+
+    <text x="686" y="386" font-weight="700" fill="#0f172a" font-size="13">Scripted toy Improver</text>
+    <text x="686" y="406" font-family="Consolas, monospace">models/toy_policy.py</text>
+    <text x="686" y="426">drives the env purely via bash + rsi</text>
+  </g>
+  <text x="180" y="458" text-anchor="middle" font-size="11" fill="#0f766e">protected (controller side)</text>
+  <text x="500" y="458" text-anchor="middle" font-size="11" fill="#1d4ed8">environment side</text>
+  <text x="820" y="458" text-anchor="middle" font-size="11" fill="#475569">pluggable backends</text>
+</svg>

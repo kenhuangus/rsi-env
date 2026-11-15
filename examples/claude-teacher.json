@@ -1,0 +1,6 @@
+{
+  "backend": "anthropic",
+  "name": "claude-opus-5-5",
+  "effort": "high",
+  "max_tokens": 64000
+}

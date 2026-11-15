@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" width="1000" height="560" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <linearGradient id="env" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eff6ff"/><stop offset="1" stop-color="#dbeafe"/></linearGradient>
+    <linearGradient id="host" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0fdfa"/><stop offset="1" stop-color="#ccfbf1"/></linearGradient>
+    <filter id="s" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.12"/></filter>
+  </defs>
+  <rect width="1000" height="560" fill="#ffffff"/>
+  <text x="500" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#0f172a">RSI-Env architecture</text>
+  <text x="500" y="56" text-anchor="middle" font-size="13" fill="#475569">Editable RSI Environment ↔ controlled interfaces ↔ protected Host Controller</text>
+
+  <!-- RSI Environment -->
+  <rect x="24" y="78" width="420" height="458" rx="14" fill="url(#env)" stroke="#2563eb" stroke-width="2" filter="url(#s)"/>
+  <text x="44" y="106" font-size="16" font-weight="700" fill="#1e40af">RSI Environment (sandbox, editable)</text>
+  <text x="44" y="125" font-size="12" fill="#1e3a8a">persistent state 𝒫ₜ survives rounds and system versions</text>
+
+  <rect x="44" y="140" width="380" height="96" rx="10" fill="#ffffff" stroke="#93c5fd"/>
+  <text x="60" y="164" font-size="14" font-weight="700" fill="#0f172a">Improver</text>
+  <text x="60" y="184" font-size="12" fill="#334155">Self: the active (Hₜ, θₜ)  ·  Teacher: fixed external system</text>
+  <text x="60" y="204" font-size="12" fill="#334155">minimal loop: model → one tool action → append result</text>
+  <text x="60" y="223" font-size="12" fill="#334155">tools: bash, compact (auto-compaction ≈ 90% context)</text>
+
+  <rect x="44" y="250" width="184" height="126" rx="10" fill="#ffffff" stroke="#93c5fd"/>
+  <text x="58" y="273" font-size="13" font-weight="700" fill="#0f172a">Workspace</text>
+  <text x="58" y="293" font-size="12" fill="#334155">journal.md</text>
+  <text x="58" y="311" font-size="12" fill="#334155">scripts/ · data/</text>
+  <text x="58" y="329" font-size="12" fill="#334155">experiments/</text>
+  <text x="58" y="347" font-size="12" fill="#334155">.tool_outputs/ (full)</text>
+  <text x="58" y="365" font-size="12" fill="#334155">resources/ (public)</text>
+
+  <rect x="240" y="250" width="184" height="126" rx="10" fill="#ffffff" stroke="#93c5fd"/>
+  <text x="254" y="273" font-size="13" font-weight="700" fill="#0f172a">System copies</text>
+  <text x="254" y="293" font-size="12" fill="#334155">active/harness (read-only)</text>
+  <text x="254" y="311" font-size="12" fill="#334155">active/model.json, VERSION</text>
+  <text x="254" y="329" font-size="12" fill="#334155">candidate/harness (edits)</text>
+  <text x="254" y="347" font-size="12" fill="#334155">kept separate from the</text>
+  <text x="254" y="365" font-size="12" fill="#334155">accepted system</text>
+
+  <rect x="44" y="390" width="380" height="128" rx="10" fill="#ffffff" stroke="#93c5fd"/>
+  <text x="60" y="413" font-size="13" font-weight="700" fill="#0f172a">Open-ended exploration (no fixed recipe)</text>
+  <text x="60" y="434" font-size="12" fill="#334155">• inspect docs, lineage, journal, prior records</text>
+  <text x="60" y="453" font-size="12" fill="#334155">• modify harness code / construct training data</text>
+  <text x="60" y="472" font-size="12" fill="#334155">• choose training method, build local tests</text>
+  <text x="60" y="491" font-size="12" fill="#334155">• compare candidates, record evidence, submit</text>
+  <text x="60" y="510" font-size="12" fill="#334155">• or return TASK_COMPLETE</text>
+
+  <!-- Controlled interfaces -->
+  <rect x="462" y="160" width="96" height="300" rx="10" fill="#fff7ed" stroke="#d97706" stroke-width="2" filter="url(#s)"/>
+  <text x="510" y="186" text-anchor="middle" font-size="13" font-weight="700" fill="#9a3412">Controlled</text>
+  <text x="510" y="203" text-anchor="middle" font-size="13" font-weight="700" fill="#9a3412">interfaces</text>
+  <text x="510" y="228" text-anchor="middle" font-size="11" fill="#7c2d12">rsi CLI</text>
+  <text x="510" y="244" text-anchor="middle" font-size="11" fill="#7c2d12">HTTP + session</text>
+  <text x="510" y="259" text-anchor="middle" font-size="11" fill="#7c2d12">token</text>
+  <g font-size="11" fill="#431407" text-anchor="middle">
+    <text x="510" y="290">status · lineage</text>
+    <text x="510" y="310">infer</text>
+    <text x="510" y="330">local-eval</text>
+    <text x="510" y="350">train-sft</text>
+    <text x="510" y="370">submit</text>
+    <text x="510" y="390">feedback*</text>
+  </g>
+  <text x="510" y="420" text-anchor="middle" font-size="10" fill="#9a3412">*per-task gate</text>
+  <text x="510" y="436" text-anchor="middle" font-size="10" fill="#9a3412">(Benchmark-Guided)</text>
+
+  <path d="M444,300 L460,300" stroke="#334155" stroke-width="2" marker-end="url(#a)" marker-start="url(#a)"/>
+  <path d="M558,300 L574,300" stroke="#334155" stroke-width="2" marker-end="url(#a)" marker-start="url(#a)"/>
+
+  <!-- Host controller -->
+  <rect x="576" y="78" width="400" height="458" rx="14" fill="url(#host)" stroke="#0d9488" stroke-width="2" filter="url(#s)"/>
+  <text x="596" y="106" font-size="16" font-weight="700" fill="#115e59">Host Controller (protected)</text>
+  <text x="596" y="125" font-size="12" fill="#134e4a">outside the editable environment; not modifiable by the Improver</text>
+
+  <rect x="596" y="140" width="360" height="50" rx="10" fill="#0d9488"/>
+  <text x="776" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">Experiment Controller</text>
+  <text x="776" y="180" text-anchor="middle" font-size="11" fill="#ccfbf1">rounds · budgets · Self/Teacher takeover · trajectories</text>
+
+  <g font-size="12">
+    <rect x="596" y="204" width="174" height="74" rx="9" fill="#ffffff" stroke="#5eead4"/>
+    <text x="610" y="226" font-weight="700" fill="#0f172a">Model services</text>
+    <text x="610" y="245" fill="#334155">inference (vLLM / API)</text>
+    <text x="610" y="263" fill="#334155">training (SFT / Tinker relay)</text>
+
+    <rect x="782" y="204" width="174" height="74" rx="9" fill="#ffffff" stroke="#5eead4"/>
+    <text x="796" y="226" font-weight="700" fill="#0f172a">Validity checks</text>
+    <text x="796" y="245" fill="#334155">interface + load-and-sample</text>
+    <text x="796" y="263" fill="#334155">contamination screen</text>
+
+    <rect x="596" y="290" width="174" height="74" rx="9" fill="#ffffff" stroke="#5eead4"/>
+    <text x="610" y="312" font-weight="700" fill="#0f172a">Versions &amp; lineage</text>
+    <text x="610" y="331" fill="#334155">H&lt;i&gt;/M&lt;j&gt; registry</text>
+    <text x="610" y="349" fill="#334155">parent links, audit log</text>
+
+    <rect x="782" y="290" width="174" height="74" rx="9" fill="#ffffff" stroke="#5eead4"/>
+    <text x="796" y="312" font-weight="700" fill="#0f172a">Incident records</text>
+    <text x="796" y="331" fill="#334155">protected-path guard</text>
+    <text x="796" y="349" fill="#334155">exposure → excluded</text>
+
+    <rect x="596" y="376" width="360" height="74" rx="9" fill="#ffffff" stroke="#5eead4"/>
+    <text x="610" y="398" font-weight="700" fill="#0f172a">Independent capability evaluation</text>
+    <text x="610" y="417" fill="#334155">isolated worker · avg@3 / pass@3 · not an acceptance criterion</text>
+    <text x="610" y="435" fill="#334155">GPQA · AIME · Terminal-Bench · SimpleQA (or offline mini-suites)</text>
+  </g>
+
+  <rect x="596" y="462" width="360" height="56" rx="9" fill="#134e4a"/>
+  <text x="776" y="485" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">Private evaluation data</text>
+  <text x="776" y="504" text-anchor="middle" font-size="11" fill="#99f6e4">benchmark prompts, answers, verifiers, checkpoints</text>
+</svg>

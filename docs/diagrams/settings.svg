@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 430" width="1000" height="430" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker>
+    <linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
+    <filter id="s" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.12"/></filter>
+  </defs>
+  <rect width="1000" height="430" fill="#ffffff"/>
+  <text x="500" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#0f172a">Three task settings: how much research the agent must organize itself</text>
+  <text x="500" y="56" text-anchor="middle" font-size="13" fill="#475569">Same environment and resources; only the goal specificity and the exposed feedback change</text>
+
+  <rect x="60" y="78" width="880" height="14" rx="7" fill="url(#g)"/>
+  <text x="60" y="112" font-size="12" fill="#92400e">more external guidance</text>
+  <text x="940" y="112" text-anchor="end" font-size="12" fill="#1e40af">more research autonomy</text>
+
+  <g filter="url(#s)">
+    <rect x="40" y="128" width="290" height="270" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+    <rect x="355" y="128" width="290" height="270" rx="14" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+    <rect x="670" y="128" width="290" height="270" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  </g>
+  <g font-size="12" fill="#334155">
+    <text x="60" y="160" font-size="17" font-weight="700" fill="#92400e">Benchmark-Guided</text>
+    <text x="60" y="182">3 tasks: Terminal-Bench · SimpleQA · AIME</text>
+    <text x="60" y="212" font-weight="700" fill="#0f172a">Given</text>
+    <text x="60" y="231">✓ named target benchmark</text>
+    <text x="60" y="249">✓ aggregate feedback via controller</text>
+    <text x="72" y="266">(budgeted per round; no items)</text>
+    <text x="60" y="296" font-weight="700" fill="#0f172a">Agent must</text>
+    <text x="60" y="315">• develop an update strategy</text>
+    <text x="60" y="333">• retain other capabilities</text>
+    <text x="60" y="371" font-family="Consolas, monospace" font-size="11" fill="#92400e">bg-terminal · bg-simpleqa · bg-aime</text>
+
+    <text x="375" y="160" font-size="17" font-weight="700" fill="#334155">Capability-Directed</text>
+    <text x="375" y="182">3 tasks: reasoning · knowledge · agentic</text>
+    <text x="375" y="212" font-weight="700" fill="#0f172a">Given</text>
+    <text x="375" y="231">✓ broad capability goal</text>
+    <text x="375" y="249">✗ no benchmark name</text>
+    <text x="375" y="267">✗ no benchmark feedback</text>
+    <text x="375" y="296" font-weight="700" fill="#0f172a">Agent must</text>
+    <text x="375" y="315">• formulate a concrete problem</text>
+    <text x="375" y="333">• build its own local evidence</text>
+    <text x="375" y="371" font-family="Consolas, monospace" font-size="11" fill="#475569">reasoning · knowledge · agentic</text>
+
+    <text x="690" y="160" font-size="17" font-weight="700" fill="#1e40af">Open-General</text>
+    <text x="690" y="182">1 task: improve the live agent</text>
+    <text x="690" y="212" font-weight="700" fill="#0f172a">Given</text>
+    <text x="690" y="231">✗ no direction</text>
+    <text x="690" y="249">✗ no benchmark name</text>
+    <text x="690" y="267">✗ no benchmark feedback</text>
+    <text x="690" y="296" font-weight="700" fill="#0f172a">Agent must</text>
+    <text x="690" y="315">• select the improvement direction</text>
+    <text x="690" y="333">• formulate + validate on its own</text>
+    <text x="690" y="371" font-family="Consolas, monospace" font-size="11" fill="#1e40af">general</text>
+  </g>
+  <text x="500" y="420" text-anchor="middle" font-size="12" fill="#475569">All settings: execution diagnostics always returned; final capability gains measured independently and never used to accept updates.</text>
+</svg>

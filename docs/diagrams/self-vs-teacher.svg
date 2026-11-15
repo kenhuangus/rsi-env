@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 395" width="1000" height="395" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+    <marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#d97706"/></marker>
+  </defs>
+  <rect width="1000" height="395" fill="#ffffff"/>
+  <text x="500" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#0f172a">Improver configurations</text>
+
+  <text x="40" y="78" font-size="16" font-weight="700" fill="#1e40af">Self: the evolving system improves itself</text>
+  <g font-size="14" font-weight="700" text-anchor="middle">
+    <rect x="40" y="96" width="150" height="58" rx="10" fill="#dbeafe" stroke="#2563eb"/><text x="115" y="122">𝒮₀ = H0/M0</text><text x="115" y="141" font-size="11" font-weight="400">seed</text>
+    <rect x="280" y="96" width="150" height="58" rx="10" fill="#dbeafe" stroke="#2563eb"/><text x="355" y="122">𝒮₁ = H1/M0</text><text x="355" y="141" font-size="11" font-weight="400">harness update</text>
+    <rect x="520" y="96" width="150" height="58" rx="10" fill="#dbeafe" stroke="#2563eb"/><text x="595" y="122">𝒮₂ = H1/M1</text><text x="595" y="141" font-size="11" font-weight="400">model update</text>
+    <rect x="760" y="96" width="200" height="58" rx="10" fill="#f1f5f9" stroke="#64748b"/><text x="860" y="122">TASK_COMPLETE</text><text x="860" y="141" font-size="11" font-weight="400">no justified change left</text>
+  </g>
+  <g stroke="#334155" stroke-width="2" fill="none">
+    <path d="M190,125 L278,125" marker-end="url(#a)"/><path d="M430,125 L518,125" marker-end="url(#a)"/><path d="M670,125 L758,125" marker-end="url(#a)"/>
+  </g>
+  <g stroke="#2563eb" stroke-width="2" fill="none" stroke-dasharray="5 4">
+    <path d="M115,154 C115,200 236,200 236,130" marker-end="url(#b)"/>
+    <path d="M355,154 C355,200 476,200 476,130" marker-end="url(#b)"/>
+    <path d="M595,154 C595,200 716,200 716,130" marker-end="url(#b)"/>
+  </g>
+  <text x="500" y="214" text-anchor="middle" font-size="12" fill="#1e40af">dashed: who runs the next round — each accepted model–harness pair takes over as the Improver</text>
+
+  <line x1="40" y1="236" x2="960" y2="236" stroke="#e2e8f0"/>
+
+  <text x="40" y="266" font-size="16" font-weight="700" fill="#b45309">Teacher: a fixed external Improver updates the target</text>
+  <g font-size="14" font-weight="700" text-anchor="middle">
+    <rect x="40" y="290" width="150" height="58" rx="10" fill="#fef3c7" stroke="#d97706"/><text x="115" y="316">Teacher T</text><text x="115" y="335" font-size="11" font-weight="400">model + harness frozen</text>
+    <rect x="280" y="290" width="150" height="58" rx="10" fill="#dbeafe" stroke="#2563eb"/><text x="355" y="316">𝒮ₜ</text><text x="355" y="335" font-size="11" font-weight="400">target system</text>
+    <rect x="520" y="290" width="150" height="58" rx="10" fill="#dbeafe" stroke="#2563eb"/><text x="595" y="316">𝒮ₜ₊₁</text><text x="595" y="335" font-size="11" font-weight="400">target system</text>
+  </g>
+  <path d="M430,319 L518,319" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M190,319 L278,319" stroke="#d97706" stroke-width="2.5" fill="none" marker-end="url(#c)"/>
+  <text x="234" y="310" text-anchor="middle" font-size="12" font-weight="700" fill="#b45309">uₜ</text>
+  <path d="M595,348 C595,372 115,372 115,350" stroke="#d97706" stroke-width="2" fill="none" stroke-dasharray="5 4" marker-end="url(#c)"/>
+  <text x="355" y="389" text-anchor="middle" font-size="11" fill="#b45309">next round: the same fixed T inspects 𝒮ₜ₊₁</text>
+  <text x="700" y="306" font-size="12" fill="#475569">Paper: Codex + GPT-5.6 Sol / GPT-6 Astra.</text>
+  <text x="700" y="324" font-size="12" fill="#475569">Here: any backend spec (Claude, OpenAI-</text>
+  <text x="700" y="342" font-size="12" fill="#475569">compatible, or the offline toy teacher).</text>
+</svg>

@@ -1,0 +1,6 @@
+{
+  "name": "minimal",
+  "system_prompt": "You are an autonomous agent working in a shell environment. To act, reply with exactly one action of the form <action>{\"tool\": \"bash\", \"command\": \"...\"}</action>, or <action>{\"tool\": \"compact\"}</action> to summarize your history. You will see the tool result and can act again. When you are done, reply without an action and end with a line 'Final answer: <answer>'.",
+  "max_steps": 60,
+  "extensions": []
+}

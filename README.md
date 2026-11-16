@@ -46,6 +46,7 @@ real corpus or endpoint with the identical tool interface it learned on. Model w
 
 1. [What the paper is about](#1-what-the-paper-is-about)
 2. [Quickstart (Windows / PowerShell)](#2-quickstart-windows--powershell)
+   - [Run a self-improving agent, step by step (beginners start here)](#2b-run-a-self-improving-agent-step-by-step-beginners-start-here)
 3. [Concepts: the formal model](#3-concepts-the-formal-model)
 4. [Tutorial: how the system is implemented](#4-tutorial-how-the-system-is-implemented)
 5. [Walkthrough of a real run](#5-walkthrough-of-a-real-run)
@@ -135,6 +136,191 @@ python -m pytest -q
 Each run writes `runs\<name>\report.md` (table of versions × benchmarks with Δ vs. the seed),
 `report.json`, the persistent `rsi_environment\` workspace and the protected `controller_private\`
 state (registry, audit log, trajectories, checkpoints, incidents).
+
+
+---
+
+## 2b. Run a self-improving agent, step by step (beginners start here)
+
+This section walks you through launching **both** self-improving agents — the **deep-research
+agent** and the **authorized red-team agent** — from a clean machine, with every command ready to
+copy and paste. No prior knowledge of the codebase is assumed. If you only read one section, read
+this one.
+
+### What "self-improvement" means here (30-second version)
+
+A *harness* is the small program that wraps the language model and gives it tools (a `bash` shell,
+a `compact` step, a system prompt, a step budget). The agent is asked to **rewrite its own harness**
+to get better at a task, round after round. The model's *weights never change* — every gain comes
+from a better harness. A separate, trusted **Controller** scores each proposed harness on a secret
+held-out set and only promotes it if it genuinely wins. That accepted harness becomes the starting
+point for the next round. That loop is recursive self-improvement.
+
+### Step 0 — Install (once)
+
+```powershell
+git clone https://github.com/kenhuangus/rsi-env.git
+cd rsi-env
+python -m pip install -e ".[dev]"
+python -m pytest -q          # optional: confirm everything imports and passes
+```
+
+You need **Python 3.10+** and **Git for Windows** (its `bash.exe` is what runs the agent's `bash`
+tool). No GPU is needed to *try the mechanics* in offline toy mode (Step 1). Running the *real*
+agents (Steps 2–3) needs a language model — see Step 1b.
+
+### Step 1 — Prove the loop works offline (no model, no GPU, ~1 minute)
+
+Before touching a real model, confirm the whole machine runs end to end with the built-in offline
+"toy" Improver. This accepts a harness improvement on the Knowledge task and writes a report:
+
+```powershell
+python -m rsi_env run --task knowledge --improver self --out runs\hello-rsi
+notepad runs\hello-rsi\report.md
+```
+
+If `report.md` shows a version table with a seed row and at least one accepted version, your install
+is healthy. Now move on to the real agents.
+
+### Step 1b — Point the agents at a language model (the one real prerequisite)
+
+The real agents need an **OpenAI-compatible chat endpoint** (anything that speaks the OpenAI
+`/v1/chat/completions` API: a local LM Studio / llama-server / MLX server, vLLM, Ollama's OpenAI
+shim, or a hosted provider). You give RSI-Env a small JSON file describing it. A ready-made example
+for a locally served 35B model lives at `examples\clover-macmini.json`:
+
+```powershell
+# tell RSI-Env where your endpoint is (keeps the address out of the repo)
+$env:CLOVER_BASE_URL = "http://<your-server-ip>:8000/v1"
+# if your endpoint needs a key:
+$env:CLOVER_API_KEY  = "<your-key>"      # omit for a local server with no auth
+```
+
+To use a different model, copy `examples\clover-macmini.json`, change `name`, `base_url_env`, and
+`api_key_env`, and pass your file to `--target-model`. Any endpoint works as long as it is
+OpenAI-compatible and supports tool/function calling.
+
+> **Tip — check the endpoint first.** Confirm your server answers before starting a multi-hour run.
+> From PowerShell (replace the URL and model name with yours):
+>
+> ```powershell
+> $body = @{ model = "clover-35b-a3b"; messages = @(@{ role = "user"; content = "say hello" }) } | ConvertTo-Json
+> Invoke-RestMethod -Uri "$env:CLOVER_BASE_URL/chat/completions" -Method Post -ContentType "application/json" -Body $body
+> ```
+>
+> A JSON reply with a `choices` field means the endpoint is ready. An error here (connection refused,
+> 404, auth) must be fixed before launching.
+
+### Step 2 — Launch the DEEP-RESEARCH self-improving agent
+
+This agent learns to answer hard, multi-hop questions over a document collection by improving how it
+searches, scripts over the corpus, and keeps a fact ledger.
+
+```powershell
+$env:CLOVER_BASE_URL = "http://<your-server-ip>:8000/v1"
+
+python -m rsi_env run --task research --improver self `
+  --rounds 8 --round-hours 3 --trials 2 --concurrency 4 `
+  --context-window 65536 --target-model examples\clover-macmini.json `
+  --out runs\research-self
+```
+
+Want a *harder* question set deliberately built to force **several** successive harness
+improvements (not one lucky jump)? Use `--task research-pro` instead — everything else stays the
+same:
+
+```powershell
+python -m rsi_env run --task research-pro --improver self `
+  --rounds 8 --round-hours 3 --trials 2 --concurrency 4 `
+  --context-window 65536 --target-model examples\clover-macmini.json `
+  --out runs\research-pro-self
+```
+
+### Step 3 — Launch the AUTHORIZED RED-TEAM self-improving agent
+
+This agent learns to recover a guarded canary token from a **simulated** LLM application through a
+single `send.py` channel, improving its probing strategy round after round. It only ever talks to
+the local simulated targets shipped with the repo.
+
+```powershell
+$env:CLOVER_BASE_URL = "http://<your-server-ip>:8000/v1"
+
+python -m rsi_env run --task redteam --improver self `
+  --rounds 8 --round-hours 3 --trials 2 --concurrency 4 `
+  --context-window 65536 --target-model examples\clover-macmini.json `
+  --out runs\redteam-self
+```
+
+> **Scope.** The red-team agent is limited to secret-extraction / prompt-injection against targets
+> you own or are authorized to test. To later point a *finished* harness at a real endpoint you
+> control, use practical mode (section 7.7) with the required `--authorized` flag.
+
+### What every flag means
+
+| Flag | Plain-English meaning | Good starting value |
+|---|---|---|
+| `--task` | which agent to grow: `research`, `research-pro`, or `redteam` | one of those three |
+| `--improver self` | the agent improves *its own* harness (vs. a separate `teacher`) | `self` |
+| `--rounds N` | how many improvement rounds to attempt | `8` |
+| `--round-hours H` | **max wall-clock per round** — the agent must finish experimenting *and submit* within this | `3` (see pitfall below) |
+| `--trials K` | how many times each question is scored (averages out luck) | `2` |
+| `--concurrency N` | parallel evaluation trials (faster if your endpoint handles it) | `4` |
+| `--context-window` | token budget before the harness compacts history | `65536` |
+| `--target-model` | the JSON file describing your LLM endpoint | `examples\clover-macmini.json` |
+| `--out DIR` | where results and the workspace are written | `runs\<name>` |
+
+### Step 4 — Watch it while it runs
+
+A run can take hours. Open a **second** PowerShell window to watch progress without disturbing it:
+
+```powershell
+cd rsi-env
+# the Controller's running score log — newest at the bottom
+Get-Content runs\research-self\controller_private\audit.jsonl -Wait -Tail 20
+
+# which version is currently live (H = harness, M = model; M0 = weights unchanged)
+Get-Content runs\research-self\controller_private\registry.json
+```
+
+In the audit log, `round-begin` lines show the active version at the start of each round, and
+`local-eval` lines show the agent's own practice scores as it experiments. A rising `score` means
+the agent is finding better harnesses.
+
+### Step 5 — Read the results
+
+When the run ends (or after an early `TASK_COMPLETE`):
+
+```powershell
+notepad runs\research-self\report.md
+```
+
+`report.md` is a table of **versions × benchmarks** with the change (Δ) versus the seed harness
+H0/M0. If later rows beat H0/M0, the agent self-improved. You can also inspect:
+
+- `runs\<name>\controller_private\trajectories\round_NN.json` — the full transcript of what the
+  agent did each round.
+- `runs\<name>\rsi_environment\` — the live workspace, including the agent's journal and the
+  harness it is currently editing.
+
+### Common pitfalls (read this if a run ends with no improvement)
+
+- **`active` never leaves `H0/M0`.** The agent improves on its own practice set but the *live*
+  version never changes. Almost always this means each round hit its **`--round-hours` deadline
+  before the agent ran `rsi submit`** to hand a candidate to the Controller. Local models are slow;
+  give them room. **Fix:** raise `--round-hours` (e.g. `3`) so a round has time to experiment *and*
+  submit, and keep `--rounds` at 8+ so there are several chances. A candidate is only promoted when
+  it is submitted *and* beats the held-out set.
+- **Endpoint errors mid-run.** If the LLM server drops connections you may see `ConnectionAborted`
+  noise in the log; short blips are tolerated, but a dead endpoint stalls the run. Confirm the
+  server is up (Step 1b tip) before launching.
+- **"No GPU" confusion.** The offline toy mode (Step 1) needs no model at all; the real agents
+  (Steps 2–3) need whatever hardware your endpoint runs on — RSI-Env itself is just the harness and
+  Controller.
+- **Keep the address private.** Set the endpoint through `$env:CLOVER_BASE_URL` rather than
+  hard-coding it, so your server address stays out of the repo and the run logs.
+
+Once a run has produced an improved harness, **section 7.7 (practical mode)** shows how to point that
+exact harness at your *own* documents or an endpoint you're authorized to test.
 
 ---
 

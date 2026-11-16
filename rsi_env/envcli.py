@@ -50,6 +50,39 @@ class Client:
         return self.call("infer", prompt=prompt, model=model, seed=seed)["text"]
 
 
+def harness_tool(a) -> int:
+    """Local helpers for editing candidate harnesses without shell/JSON escaping problems."""
+    import shutil
+    from pathlib import Path
+
+    if a.cmd == "harness-copy":
+        src, dst = Path(a.src), Path(a.dst)
+        if not (src / "harness.py").exists():
+            print(json.dumps({"error": f"{src} is not a harness directory"}))
+            return 1
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__"))
+        print(json.dumps({"copied": str(src), "to": str(dst)}))
+        return 0
+    path = Path(a.harness) / "harness.json"
+    cfg = json.loads(path.read_text(encoding="utf-8"))
+    if a.cmd == "harness-prompt":
+        text = Path(a.file).read_text(encoding="utf-8-sig")
+        cfg["system_prompt"] = (cfg.get("system_prompt", "") + "\n" + text) if a.append else text
+        changed = "system_prompt"
+    else:
+        try:
+            value = json.loads(a.value)
+        except json.JSONDecodeError:
+            value = a.value
+        cfg[a.key] = value
+        changed = a.key
+    path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    print(json.dumps({"updated": str(path), "field": changed, "prompt_chars": len(cfg.get("system_prompt", ""))}))
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="rsi")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -67,7 +100,17 @@ def main(argv=None) -> int:
     p.add_argument("--harness", default="active"); p.add_argument("--model", default="active")  # noqa: E702
     p = sub.add_parser("feedback"); p.add_argument("--benchmark", required=True)  # noqa: E702
     p.add_argument("--harness", default="active"); p.add_argument("--model", default="active")  # noqa: E702
+    p = sub.add_parser("harness-copy", help="copy a harness directory (default source: active/harness)")
+    p.add_argument("--src", default="active/harness"); p.add_argument("--dst", required=True)  # noqa: E702
+    p = sub.add_parser("harness-prompt", help="set a harness system_prompt from a plain text file (no escaping)")
+    p.add_argument("--harness", required=True); p.add_argument("--file", required=True)  # noqa: E702
+    p.add_argument("--append", action="store_true", help="append to the existing prompt instead of replacing")
+    p = sub.add_parser("harness-set", help="set a harness.json field, e.g. --key max_steps --value 200")
+    p.add_argument("--harness", required=True); p.add_argument("--key", required=True)  # noqa: E702
+    p.add_argument("--value", required=True, help="JSON value, or a plain string")
     a = ap.parse_args(argv)
+    if a.cmd.startswith("harness-"):
+        return harness_tool(a)
     c = Client.from_env()
     try:
         if a.cmd == "status":

@@ -1,0 +1,1 @@
+{"backend": "openai", "name": "deepseek", "base_url": "http://127.0.0.1:8888/v1", "base_url_env": "DEEPSEEK_BASE_URL", "api_key_env": "DEEPSEEK_API_KEY", "max_tokens": 8192, "supports": ["temperature", "top_p"], "native_tools": true, "timeout": 1800}

@@ -17,7 +17,8 @@ from ..runtime import sandbox_env
 
 
 def run_worker(mode: str, harness_dir: Path, model_spec: dict, work_dir: Path, *, items: list[dict] | None = None,
-               trials: int = 3, settings: dict | None = None, timeout: float | None = None) -> dict:
+               trials: int = 3, settings: dict | None = None, timeout: float | None = None,
+               transcripts: Path | None = None) -> dict:
     work_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=work_dir) as tmp:
         t = Path(tmp)
@@ -29,9 +30,11 @@ def run_worker(mode: str, harness_dir: Path, model_spec: dict, work_dir: Path, *
         if items is not None:
             (t / "items.jsonl").write_text("\n".join(json.dumps(i) for i in items), encoding="utf-8")
             args += ["--items", str(t / "items.jsonl")]
+        if transcripts is not None:
+            args += ["--transcripts", str(Path(transcripts).resolve())]
         env = sandbox_env()
         env.update({k: v for k, v in __import__("os").environ.items()
-                    if k.endswith("_API_KEY") or k.startswith("ANTHROPIC_")})  # credentials stay controller-side
+                    if k.endswith(("_API_KEY", "_BASE_URL")) or k.startswith("ANTHROPIC_")})  # controller-side only
         p = subprocess.run(args, cwd=t, env=env, capture_output=True, text=True, timeout=timeout)
         out = t / "out.json"
         if not out.exists():
@@ -42,6 +45,9 @@ def run_worker(mode: str, harness_dir: Path, model_spec: dict, work_dir: Path, *
 def suite_items(suite: Suite, seed: int = 7) -> list[dict]:
     rows = []
     for it in suite.items:
+        if "row" in it.meta:          # real-world domain items carry their full spec
+            rows.append(dict(it.meta["row"]))
+            continue
         row = {"id": it.id, "prompt": it.prompt, "answer": it.answer, "kind": it.kind}
         if it.kind == "terminal":
             row.update(files=it.meta["files"], tb_index=it.meta["index"], suite_seed=seed)
@@ -56,18 +62,21 @@ def score(metric: str, per_item: dict[str, list[bool]]) -> dict:
 
 
 class Evaluator:
-    def __init__(self, work_dir: Path, settings: dict, trials: int = 3, seed: int = 7):
+    def __init__(self, work_dir: Path, settings: dict, trials: int = 3, seed: int = 7, salt: str = ""):
         self.work_dir, self.settings, self.trials, self.seed = Path(work_dir), settings, trials, seed
+        self.salt = salt
 
-    def evaluate(self, harness_dir: Path, model_spec: dict, benchmarks: list[str]) -> dict:
+    def evaluate(self, harness_dir: Path, model_spec: dict, benchmarks: list[str], tag: str = "") -> dict:
         out = {}
         for name in benchmarks:
-            suite = get_suite(name, self.seed)
+            suite = get_suite(name, self.seed, self.salt)
+            tdir = self.work_dir / "transcripts" / (tag.replace("/", "_") or "eval") / name
             res = run_worker("eval", harness_dir, model_spec, self.work_dir,
-                             items=suite_items(suite, self.seed), trials=self.trials, settings=self.settings)
+                             items=suite_items(suite, self.seed), trials=self.trials, settings=self.settings,
+                             transcripts=tdir)
             if "per_item" not in res:
                 out[name] = {"error": res.get("errors"), "score": None, "metric": suite.metric}
                 continue
             out[name] = {**score(suite.metric, res["per_item"]), "metric": suite.metric.replace("k", str(self.trials)),
-                         "tool_calls": res.get("tool_calls", 0)}
+                         "tool_calls": res.get("tool_calls", 0), "per_item": res["per_item"]}
         return out

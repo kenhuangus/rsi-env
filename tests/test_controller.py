@@ -57,6 +57,16 @@ def test_identical_candidate_rejected(host_factory, candidate):
         h.submit(harness="candidate/harness")
 
 
+def test_formatting_only_change_is_not_a_new_version(host_factory, candidate):
+    h = host_factory()
+    d = candidate(h)
+    raw = (d / "harness.json").read_text()
+    (d / "harness.json").write_text(json.dumps(json.loads(raw), indent=4))  # reformat, same content
+    (d / "harness.py").write_text((d / "harness.py").read_text() + "\n\n   \n")
+    with pytest.raises(ServiceError, match="identical"):
+        h.submit(harness="candidate/harness")
+
+
 def test_accept_harness_then_model_versions(host_factory, candidate):
     h = host_factory()
     d = candidate(h)

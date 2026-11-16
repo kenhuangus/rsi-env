@@ -1,0 +1,1 @@
+{"backend": "openai", "name": "clover-35b-a3b", "base_url": "http://localhost:8000/v1", "base_url_env": "CLOVER_BASE_URL", "api_key_env": "CLOVER_API_KEY", "max_tokens": 8192, "supports": ["temperature", "top_p"], "native_tools": true, "timeout": 600}

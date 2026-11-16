@@ -22,6 +22,30 @@ import re
 from pathlib import Path
 
 ACTION_RE = re.compile(r"<action>\s*(\{.*?\})\s*</action>", re.S)
+# Many open models emit their native XML tool-call syntax instead (e.g. Qwen-style
+# <function=bash><parameter=command>...</parameter>). Accept it as the same action.
+XML_PARAM_RE = re.compile(r"<parameter=(\w+)>\s*(.*?)\s*(?=</parameter>|<parameter=|</function>|</tool_call>|$)", re.S)
+TOOL_HINT_RE = re.compile(r"<action|</?tool_call|<function[=>]|<parameter[=>]", re.I)
+
+
+def parse_action(reply: str):
+    """Return (action_dict | None, error | None)."""
+    m = ACTION_RE.search(reply)
+    if m:
+        try:
+            act = json.loads(m.group(1))
+        except json.JSONDecodeError as e:
+            return None, f"invalid action JSON: {e}"
+        act.setdefault("tool", "bash" if "command" in act else None)
+        return act, None
+    params = dict(XML_PARAM_RE.findall(reply))
+    if params:
+        fn = re.search(r"<function=(\w+)>", reply)
+        tool = params.get("tool") or (fn.group(1) if fn else ("bash" if "command" in params else None))
+        return {"tool": tool, **{k: v for k, v in params.items() if k != "tool"}}, None
+    if TOOL_HINT_RE.search(reply):
+        return None, "could not parse your tool call; use <action>{\"tool\": \"bash\", \"command\": \"...\"}</action>"
+    return None, None
 
 
 def build(model, runtime, settings, harness_dir):
@@ -68,15 +92,13 @@ class Harness:
                 msgs = self._compact(msgs, task, sampling)
             reply = self.model.generate(msgs, sampling)
             msgs.append({"role": "assistant", "content": reply})
-            m = ACTION_RE.search(reply)
-            if not m:
-                return {"final": reply, "messages": msgs, "steps": steps, "tool_calls": tool_calls}
-            try:
-                act = json.loads(m.group(1))
-            except json.JSONDecodeError as e:
-                msgs.append({"role": "user", "content": f"[harness] invalid action JSON: {e}"})
+            act, err = parse_action(reply)
+            if err:
+                msgs.append({"role": "user", "content": f"[harness] {err}"})
                 steps += 1
                 continue
+            if act is None:
+                return {"final": reply, "messages": msgs, "steps": steps, "tool_calls": tool_calls}
             if act.get("tool") == "compact":
                 msgs = self._compact(msgs, task, sampling)
             elif act.get("tool") == "bash":

@@ -236,7 +236,27 @@ SUITES: dict[str, Callable[..., Suite]] = {
 }
 
 
-def get_suite(name: str, seed: int = 7) -> Suite:
+def domain_suite(name: str, salt: str = "") -> Suite:
+    """Private suites for the real-world domains; ``salt`` is a controller-only secret."""
+    if name == "redteam-ctf":
+        from ..domains import redteam
+        rows = redteam.items("eval", salt, per_level=2)
+    elif name == "research-qa":
+        from ..domains import research
+        rows = research.items("eval", salt, n=28)
+    else:
+        raise KeyError(name)
+    kind = rows[0]["kind"]
+    return Suite(name, "avg@k", kind, [Item(r["id"], r["prompt"], r.get("answer", ""), kind=kind,
+                                            meta={"row": r}) for r in rows])
+
+
+DOMAIN_SUITES = ("redteam-ctf", "research-qa")
+
+
+def get_suite(name: str, seed: int = 7, salt: str = "") -> Suite:
+    if name in DOMAIN_SUITES:
+        return domain_suite(name, salt)
     if name in SUITES:
         return SUITES[name](seed)
     p = Path(name)

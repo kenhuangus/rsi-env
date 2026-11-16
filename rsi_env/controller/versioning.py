@@ -15,11 +15,28 @@ from pathlib import Path
 IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".tool_outputs")
 
 
+def _canonical(f: Path) -> bytes:
+    """Content used for identity: JSON parsed and re-dumped, text with normalized line endings
+    and trailing whitespace stripped, so formatting-only edits are not new versions."""
+    data = f.read_bytes()
+    if f.suffix == ".json":
+        try:
+            return json.dumps(json.loads(data), sort_keys=True).encode()
+        except ValueError:
+            pass
+    try:
+        text = data.decode("utf-8").replace("\r\n", "\n")
+        return "\n".join(line.rstrip() for line in text.split("\n")).strip().encode()
+    except UnicodeDecodeError:
+        return data
+
+
 def dir_hash(d: Path) -> str:
     h = hashlib.sha256()
-    for f in sorted(p for p in Path(d).rglob("*") if p.is_file() and "__pycache__" not in p.parts):
+    for f in sorted(p for p in Path(d).rglob("*") if p.is_file() and "__pycache__" not in p.parts
+                    and p.suffix != ".pyc"):
         h.update(str(f.relative_to(d)).replace("\\", "/").encode())
-        h.update(f.read_bytes())
+        h.update(_canonical(f))
     return h.hexdigest()
 
 

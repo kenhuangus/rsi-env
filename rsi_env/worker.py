@@ -69,39 +69,80 @@ def cmd_check(a) -> dict:
     return {"ok": not errors, "errors": errors, "sample": (sample or "")[:500]}
 
 
+def _run_trial(a, it: dict, trial: int, model, settings: dict) -> dict:
+    from contextlib import nullcontext
+
+    from .domains import redteam, research
+
+    iid = str(it.get("id"))
+    kind = it.get("kind", "qa")
+    target = redteam.TargetServer(it["challenge"]) if kind == "redteam" else None
+    with tempfile.TemporaryDirectory() as tmp, (target or nullcontext()):
+        d = Path(tmp)
+        for name, content in (it.get("files") or {}).items():
+            (d / name).write_text(content, encoding="utf-8")
+        if target is not None:
+            target.install(d)
+        if kind == "research":
+            research.install_tools(d)
+        budget = settings.get("eval_tool_budget")
+        import time as _time
+        rt = ToolRuntime(d, env=sandbox_env(), timeout=120, persist_outputs=False,
+                         max_tool_calls=int(budget) if budget else None,
+                         deadline=_time.time() + float(settings.get("eval_trial_seconds", 900)))
+        prompt = it.get("prompt") or (research.task_prompt(it["question"]) if kind == "research" else "")
+        try:
+            h = build_harness(a.harness, model, rt, settings)
+            resp = h.solve(prompt, _sampling(settings, trial))
+        except Exception as e:  # noqa: BLE001 - a crashing harness fails the item
+            resp = f"[harness error] {type(e).__name__}: {e}"
+        if kind == "redteam":
+            ok = redteam.grade(it["challenge"], resp)
+        elif kind == "research":
+            ok = research.grade(it, resp)
+        elif kind == "terminal" or "check" in it:
+            if "check" in it:
+                ok = "[exit=0]" in ToolRuntime(d, env=sandbox_env(), timeout=60,
+                                                persist_outputs=False).bash(it["check"])
+            else:
+                ok = bool(terminal_verifier(int(it.get("suite_seed", 7)), int(it["tb_index"]))(d))
+        else:
+            ok = grade(Item(iid, prompt, str(it.get("answer", "")), kind=kind), resp)
+    if a.transcripts:
+        out = Path(a.transcripts)
+        out.mkdir(parents=True, exist_ok=True)
+        lines = [f"# {iid} trial {trial}: {'PASS' if ok else 'FAIL'}", "", "## Task", prompt, "", "## Tool calls"]
+        for e in rt.log:
+            lines += [f"$ {e['cmd']}", e["out"], ""]
+        if target is not None:
+            lines += ["## Target conversation"] + [f"> {t['message']}" + (" [doc]" if t["doc"] else "")
+                                                     + f"\n< {t['reply']}" for t in target.transcript] + [""]
+        lines += ["## Final response", resp or ""]
+        (out / f"{iid}_t{trial}.md").write_text("\n".join(lines), encoding="utf-8")
+    return {"id": iid, "ok": bool(ok), "tool_calls": rt.tool_calls, "resp": (resp or "")[-300:]}
+
+
 def cmd_eval(a) -> dict:
+    from concurrent.futures import ThreadPoolExecutor
+
     model = load_model(json.loads(Path(a.model).read_text(encoding="utf-8")))
     settings = json.loads(Path(a.settings).read_text(encoding="utf-8")) if a.settings else {}
     items = [json.loads(x) for x in Path(a.items).read_text(encoding="utf-8").splitlines() if x.strip()]
+    jobs = [(it, trial) for it in items for trial in range(a.trials)]
+    workers = max(1, int(settings.get("eval_concurrency", 1)))
+    if workers == 1:
+        results = [_run_trial(a, it, t, model, settings) for it, t in jobs]
+    else:
+        with ThreadPoolExecutor(workers) as ex:
+            results = list(ex.map(lambda j: _run_trial(a, j[0], j[1], model, settings), jobs))
     per_item: dict[str, list[bool]] = {}
     responses: dict[str, list[str]] = {}
-    tool_calls = 0
-    for it in items:
-        iid = str(it.get("id"))
-        for trial in range(a.trials):
-            with tempfile.TemporaryDirectory() as tmp:
-                d = Path(tmp)
-                for name, content in (it.get("files") or {}).items():
-                    (d / name).write_text(content, encoding="utf-8")
-                rt = ToolRuntime(d, env=sandbox_env(), timeout=120, persist_outputs=False)
-                try:
-                    h = build_harness(a.harness, model, rt, settings)
-                    resp = h.solve(it["prompt"], _sampling(settings, trial))
-                except Exception as e:  # noqa: BLE001 - a crashing harness fails the item
-                    resp = f"[harness error] {e}"
-                tool_calls += rt.tool_calls
-                if it.get("kind") == "terminal" or "check" in it:
-                    if "check" in it:
-                        ok = "[exit=0]" in ToolRuntime(d, env=sandbox_env(), timeout=60,
-                                                        persist_outputs=False).bash(it["check"])
-                    else:
-                        ok = bool(terminal_verifier(int(it.get("suite_seed", 7)), int(it["tb_index"]))(d))
-                else:
-                    ok = grade(Item(iid, it["prompt"], str(it.get("answer", "")), kind=it.get("kind", "qa")), resp)
-            per_item.setdefault(iid, []).append(bool(ok))
-            responses.setdefault(iid, []).append((resp or "")[-300:])
-    return {"per_item": per_item, "tool_calls": tool_calls,
-            "responses": responses if a.keep_responses else {}}
+    for r in results:
+        per_item.setdefault(r["id"], []).append(r["ok"])
+        responses.setdefault(r["id"], []).append(r["resp"])
+    return {"per_item": per_item, "tool_calls": sum(r["tool_calls"] for r in results),
+            "responses": responses if a.keep_responses else {},
+            "usage": getattr(model, "usage", None)}
 
 
 def cmd_improve(a) -> dict:
@@ -122,7 +163,7 @@ def cmd_improve(a) -> dict:
         timeout=a.command_timeout, protected=json.loads(a.protected),
         on_incident=lambda d: client.call("report_incident", detail=d),
         stop_check=lambda: client.call("round_state")["accepted"] is not None,
-        deadline=a.deadline)
+        deadline=a.deadline, sandbox_policy=True)
     t0 = time.time()
     h = build_harness(a.harness, model, rt, settings)
     res = h.run(task, _sampling(settings, 0))
@@ -144,6 +185,7 @@ def main(argv=None) -> int:
     ap.add_argument("--items")
     ap.add_argument("--trials", type=int, default=3)
     ap.add_argument("--keep-responses", action="store_true")
+    ap.add_argument("--transcripts")
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     res = {"check": cmd_check, "eval": cmd_eval, "improve": cmd_improve}[a.mode](a)

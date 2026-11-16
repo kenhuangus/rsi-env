@@ -1,0 +1,17 @@
+[round 1] active=H0/M0 improver=H0/M0
+[round 1] accepted=None tool_calls=96 final=''
+[round 2] active=H0/M0 improver=H0/M0
+[round 2] accepted=None tool_calls=0 final=''
+[round 3] active=H0/M0 improver=H0/M0
+[round 3] accepted=None tool_calls=78 final='unction>\n<parameter=tool>\nbash\n</parameter>\n<parameter=command>\nrsi local-eval -'
+[round 4] active=H0/M0 improver=H0/M0
+[round 4] accepted=None tool_calls=0 final=''
+[round 5] active=H0/M0 improver=H0/M0
+[round 5] accepted=None tool_calls=15 final='<action>{"tool": "bash", "command": "rsi local-eval --data resources/research/de'
+[round 6] active=H0/M0 improver=H0/M0
+[round 6] accepted=None tool_calls=82 final=''
+[round 7] active=H0/M0 improver=H0/M0
+[round 7] accepted=None tool_calls=56 final='int(rsi.__file__)\\"; python3 -c \\"import rsi_env; print(rsi_env.__file__)\\" 2>/d'
+[round 8] active=H0/M0 improver=H0/M0
+[round 8] accepted=None tool_calls=80 final='<action>{"tool": "bash", "command": "rsi local-eval --data resources/research/de'
+[eval] H0/M0 on research-qa

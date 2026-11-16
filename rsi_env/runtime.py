@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -19,6 +20,15 @@ from pathlib import Path
 from typing import Callable
 
 MAX_VIEW = 12_000
+
+# Improver-sandbox policy (enforced in infrastructure, like the protected-path guard):
+# whole-filesystem scans burn the round budget and are the usual route to evaluator files.
+SCAN_RE = re.compile(
+    r"\b(find|ls\s+-\w*R\w*|du|tree)\s+(-\S+\s+)*[\"']?(/|/[a-zA-Z]/?|~/?|/home/?|/usr/?|/mnt/?|[A-Za-z]:[\\/]?)[\"']?"
+    r"(?=\s|$|;|\||&)")
+EVALUATOR_MARKERS = ["rsi_env/domains", "rsi_env/benchmarks", "rsi_env/controller", "rsi_env\\domains",
+                     "rsi_env.domains", "rsi_env.benchmarks", "rsi_env.controller", "inspect.getsource",
+                     "site-packages/rsi_env", "rsi-env/rsi_env"]
 
 
 def find_bash() -> str:
@@ -36,6 +46,19 @@ def find_bash() -> str:
     return found
 
 
+def kill_tree(p: subprocess.Popen) -> None:
+    """Kill a process and all its descendants (on Windows, killing bash alone leaves children
+    holding the output pipes open)."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)], capture_output=True)
+    else:
+        p.kill()
+    try:
+        p.communicate(timeout=10)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def posix(p: str | Path) -> str:
     return str(p).replace("\\", "/")
 
@@ -46,20 +69,29 @@ class ToolRuntime:
                  on_incident: Callable[[str], None] | None = None,
                  stop_check: Callable[[], bool] | None = None,
                  deadline: float | None = None,
-                 persist_outputs: bool = True):
+                 persist_outputs: bool = True,
+                 max_tool_calls: int | None = None,
+                 sandbox_policy: bool = False):
         self.cwd = Path(cwd)
         self.env = env if env is not None else sandbox_env()
         self.timeout = timeout
         self.protected = [p.lower() for p in (protected or []) if p]
+        self.sandbox_policy = sandbox_policy
+        if sandbox_policy:
+            self.protected += [m.lower() for m in EVALUATOR_MARKERS]
         self.on_incident = on_incident
         self.stop_check = stop_check
         self.deadline = deadline
         self.persist = persist_outputs
         self.tool_calls = 0
+        self.max_tool_calls = max_tool_calls  # per-task budget enforced by the environment
+        self.log: list[dict] = []
         self.bash_path = find_bash()
 
     def should_stop(self) -> bool:
         if self.deadline is not None and time.time() >= self.deadline:
+            return True
+        if self.max_tool_calls is not None and self.tool_calls >= self.max_tool_calls:
             return True
         return bool(self.stop_check and self.stop_check())
 
@@ -70,25 +102,41 @@ class ToolRuntime:
                 return p
         return None
 
+    def _record(self, command: str, out: str) -> str:
+        """Log a refused command like any other tool call (visible in .tool_outputs and transcripts)."""
+        self.log.append({"cmd": command[:4000], "out": out})
+        if self.persist:
+            d = self.cwd / ".tool_outputs"
+            d.mkdir(exist_ok=True)
+            (d / f"{int(time.time() * 1000)}_{self.tool_calls:05d}.txt").write_text(f"$ {command}\n{out}",
+                                                                                   encoding="utf-8")
+        return out
+
     def bash(self, command: str) -> str:
         self.tool_calls += 1
+        if self.sandbox_policy and SCAN_RE.search(command):
+            return self._record(command, "BLOCKED: whole-filesystem scans are not allowed in the RSI Environment "
+                                         "(they exhaust the round budget). Everything you need is in the current "
+                                         "directory; use relative paths.")
         hit = self._guard(command)
         if hit:
-            msg = f"BLOCKED: command references a protected controller path ({hit}). Incident recorded."
             if self.on_incident:
                 self.on_incident(f"protected-path access attempt: {command[:300]}")
-            return msg
+            return self._record(command, f"BLOCKED: command references a protected path ({hit}). Incident recorded.")
         timeout = self.timeout
         if self.deadline is not None:
             timeout = max(1.0, min(timeout, self.deadline - time.time()))
+        p = subprocess.Popen([self.bash_path, "-c", command], cwd=self.cwd, env=self.env, stdin=subprocess.DEVNULL,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                             errors="replace")
         try:
-            p = subprocess.run([self.bash_path, "-c", command], cwd=self.cwd, env=self.env,
-                               capture_output=True, text=True, encoding="utf-8", errors="replace",
-                               timeout=timeout)
-            out = (p.stdout or "") + (("\n[stderr]\n" + p.stderr) if p.stderr else "")
+            stdout, stderr = p.communicate(timeout=timeout)
+            out = (stdout or "") + (("\n[stderr]\n" + stderr) if stderr else "")
             out = f"[exit={p.returncode}]\n{out}"
         except subprocess.TimeoutExpired:
+            kill_tree(p)
             out = f"[timeout after {timeout:.0f}s]"
+        self.log.append({"cmd": command[:4000], "out": out[:3000]})
         if self.persist:
             d = self.cwd / ".tool_outputs"
             d.mkdir(exist_ok=True)

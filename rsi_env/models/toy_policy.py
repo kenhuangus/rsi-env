@@ -146,8 +146,14 @@ print(json.dumps({"extensions": exts}))
 SFT_PY = r'''"""Targeted SFT data: probe the live model on public-corpus facts; keep the ones it misses."""
 import json, re
 from rsi_env.envcli import Client
-from rsi_env.benchmarks.suites import extract_final, normalize
 c = Client.from_env()
+
+def extract_final(text):
+    m = re.findall(r"final answer\s*[:\-]\s*(.+)", text or "", re.I)
+    return (m[-1] if m else (text or "").strip()).strip().strip(".")
+
+def normalize(s):
+    return re.sub(r"\s+", " ", s.lower().replace(",", "")).strip(" .")
 PATS = [
     (r"The capital of the country (\w+) is (\w+)\.", "What is the capital of the country {}?"),
     (r"The (\w+) Institute was founded in (\d+)\.", "In what year was the {} Institute founded?"),

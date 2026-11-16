@@ -19,12 +19,14 @@ def test_grading_variants():
     assert extract_final("a\nFinal answer: x\nFinal answer: y") == "y"
 
 
-def test_seven_tasks_three_settings():
-    assert len(TASKS) == 7
-    settings = {t.setting for t in TASKS.values()}
-    assert settings == {"open-general", "capability-directed", "benchmark-guided"}
-    assert sum(t.setting == "capability-directed" for t in TASKS.values()) == 3
-    assert sum(t.setting == "benchmark-guided" for t in TASKS.values()) == 3
+def test_seven_paper_tasks_three_settings_plus_domains():
+    paper = {k: t for k, t in TASKS.items() if t.capability not in ("redteam", "research")}
+    assert len(paper) == 7
+    assert {t.setting for t in paper.values()} == {"open-general", "capability-directed", "benchmark-guided"}
+    assert sum(t.setting == "capability-directed" for t in paper.values()) == 3
+    assert sum(t.setting == "benchmark-guided" for t in paper.values()) == 3
+    for name in ("redteam", "research"):  # real-world domains: broad goal, no benchmark feedback
+        assert TASKS[name].setting == "capability-directed" and not TASKS[name].feedback_benchmarks
 
 
 def test_prompt_block_replacement_rules():

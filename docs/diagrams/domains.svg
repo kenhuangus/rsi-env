@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" width="1000" height="500" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <filter id="s" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.12"/></filter>
+  </defs>
+  <rect width="1000" height="500" fill="#ffffff"/>
+  <text x="500" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#0f172a">Real-world example domains (real LLM agents, verifiable private evaluation)</text>
+
+  <!-- Red team -->
+  <rect x="20" y="56" width="470" height="424" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="2" filter="url(#s)"/>
+  <text x="40" y="84" font-size="16" font-weight="700" fill="#991b1b">Example 2 · Authorized red-team agent</text>
+  <text x="40" y="104" font-size="12" fill="#7f1d1d">benchmark: redteam-ctf (16 private targets, avg@k)</text>
+
+  <rect x="40" y="118" width="130" height="60" rx="9" fill="#ffffff" stroke="#f87171"/>
+  <text x="105" y="142" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Red-team agent</text>
+  <text x="105" y="160" text-anchor="middle" font-size="11" fill="#334155">harness + Clover</text>
+  <path d="M170,148 L222,148" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+  <text x="196" y="140" text-anchor="middle" font-size="10" fill="#475569">send.py</text>
+
+  <g font-size="11">
+    <rect x="224" y="118" width="246" height="26" rx="6" fill="#fee2e2" stroke="#fca5a5"/><text x="234" y="135" fill="#7f1d1d">input keyword filter (L1, L2, L5)</text>
+    <rect x="224" y="148" width="246" height="26" rx="6" fill="#fee2e2" stroke="#fca5a5"/><text x="234" y="165" fill="#7f1d1d">direct-request refusal (L6, L7)</text>
+    <rect x="224" y="178" width="246" height="26" rx="6" fill="#ffffff" stroke="#fca5a5"/><text x="234" y="195" fill="#0f172a" font-weight="700">simulated assistant holding the canary</text>
+    <rect x="224" y="208" width="246" height="26" rx="6" fill="#fee2e2" stroke="#fca5a5"/><text x="234" y="225" fill="#7f1d1d">output filter: literal → strict → paranoid</text>
+  </g>
+
+  <text x="40" y="266" font-size="13" font-weight="700" fill="#0f172a">What the agent must learn</text>
+  <g font-size="12" fill="#334155">
+    <text x="40" y="288">• recon: ask what the assistant can do, read --help</text>
+    <text x="40" y="307">• rephrase around input filters (synonyms, other languages)</text>
+    <text x="40" y="326">• request encodings past output filters (base64 / hex / rot13)</text>
+    <text x="40" y="345">• indirect prompt injection through the --doc channel</text>
+    <text x="40" y="364">• decode locally, verify format, respect the message budget</text>
+  </g>
+  <rect x="40" y="384" width="430" height="80" rx="9" fill="#ffffff" stroke="#fca5a5"/>
+  <g font-size="11" fill="#334155">
+    <text x="54" y="404" font-weight="700" fill="#0f172a">Verification and leakage control</text>
+    <text x="54" y="422">exact canary match in "Final answer" · per-trial target server</text>
+    <text x="54" y="439">private canaries derived from a controller-only salt</text>
+    <text x="54" y="456">public practice range: 8 targets (one per level) for local-eval</text>
+  </g>
+
+  <!-- Research -->
+  <rect x="510" y="56" width="470" height="424" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="2" filter="url(#s)"/>
+  <text x="530" y="84" font-size="16" font-weight="700" fill="#1e40af">Example 3 · Deep-research agent</text>
+  <text x="530" y="104" font-size="12" fill="#1e3a8a">benchmark: research-qa (28 private questions, avg@k)</text>
+
+  <g font-size="12">
+    <rect x="530" y="118" width="130" height="60" rx="9" fill="#ffffff" stroke="#60a5fa"/>
+    <text x="595" y="142" text-anchor="middle" font-weight="700" fill="#0f172a" font-size="13">Research agent</text>
+    <text x="595" y="160" text-anchor="middle" fill="#334155" font-size="11">harness + Clover</text>
+    <rect x="700" y="118" width="120" height="26" rx="6" fill="#dbeafe" stroke="#93c5fd"/><text x="760" y="135" text-anchor="middle" fill="#1e3a8a" font-size="11">search.py (BM25)</text>
+    <rect x="700" y="152" width="120" height="26" rx="6" fill="#dbeafe" stroke="#93c5fd"/><text x="760" y="169" text-anchor="middle" fill="#1e3a8a" font-size="11">fetch.py DOC_ID</text>
+    <rect x="850" y="118" width="110" height="60" rx="9" fill="#ffffff" stroke="#60a5fa"/>
+    <text x="905" y="140" text-anchor="middle" fill="#0f172a" font-weight="700" font-size="11">~200 documents</text>
+    <text x="905" y="156" text-anchor="middle" fill="#334155" font-size="10">encyclopedia, news,</text>
+    <text x="905" y="170" text-anchor="middle" fill="#334155" font-size="10">dated corrections</text>
+  </g>
+  <path d="M660,131 L698,131" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M660,165 L698,165" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M820,148 L848,148" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+
+  <text x="530" y="214" font-size="13" font-weight="700" fill="#0f172a">Question types (fictional world: no recall possible)</text>
+  <g font-size="12" fill="#334155">
+    <text x="530" y="236">T1 device → inventor → birth city (2 hops)</text>
+    <text x="530" y="255">T2 org → founder → birth city → river (3 hops)</text>
+    <text x="530" y="274">T3 device → org → HQ city → country → currency (4 hops)</text>
+    <text x="530" y="293">T4 which org was founded earlier (needs corrections)</text>
+    <text x="530" y="312">T5 most recent census (2024 news supersedes 2011)</text>
+    <text x="530" y="331">T6 how many devices a person invented (aggregation)</text>
+    <text x="530" y="350">T7 founding year where a 2021 correction overrides 2019</text>
+  </g>
+  <rect x="530" y="384" width="430" height="80" rx="9" fill="#ffffff" stroke="#93c5fd"/>
+  <g font-size="11" fill="#334155">
+    <text x="544" y="404" font-weight="700" fill="#0f172a">Verification and leakage control</text>
+    <text x="544" y="422">normalized exact match of the final answer</text>
+    <text x="544" y="439">public dev split (28 Q) vs. private salted questions, disjoint</text>
+    <text x="544" y="456">stratified over all 7 question types</text>
+  </g>
+</svg>

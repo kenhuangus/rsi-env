@@ -29,6 +29,7 @@ class EvalSettings:
     top_k: int = 20
     simpleqa_subset: int = 500            # paper: fixed 500-question random subset
     simpleqa_judge: str = "normalized-match"  # paper: gpt-5.5 judge
+    concurrency: int = 1                  # parallel trials per evaluation (match server slots)
 
     def sampling(self) -> dict:
         return {

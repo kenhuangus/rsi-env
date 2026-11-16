@@ -23,9 +23,15 @@ def make_config(a) -> RunConfig:
         task=a.task, improver=a.improver,
         target_model=_spec(a.target_model, {"backend": "toy", "name": "toy-base", "seed": a.seed}),
         teacher_model=_spec(a.teacher_model, None), teacher_harness=a.teacher_harness,
-        benchmarks=a.benchmarks.split(","),
-        budget=Budget(rounds=a.rounds, round_seconds=a.round_hours * 3600),
-        eval=EvalSettings(trials=a.trials), seed=a.seed, eval_every_version=not a.final_only)
+        benchmarks=(a.benchmarks or DOMAIN_BENCHMARKS.get(a.task, DEFAULT_BENCHMARKS)).split(","),
+        budget=Budget(rounds=a.rounds, round_seconds=a.round_hours * 3600, command_timeout=a.command_timeout),
+        eval=EvalSettings(trials=a.trials, concurrency=a.concurrency, context_window=a.context_window,
+                          compaction_threshold=int(a.context_window * 0.9)),
+        seed=a.seed, eval_every_version=not a.final_only)
+
+
+DEFAULT_BENCHMARKS = "mini-gpqa,mini-aime,mini-terminal,mini-simpleqa"
+DOMAIN_BENCHMARKS = {"redteam": "redteam-ctf", "research": "research-qa"}
 
 
 def cmd_run(a) -> None:
@@ -49,7 +55,7 @@ def cmd_matrix(a) -> None:
             rep = Experiment(out / f"{task}-{imp}", cfg, log=lambda *_: None).run()
             rows.append(rep)
             print(f"done {task}/{imp}: final {rep['final']}")
-    bms = a.benchmarks.split(",")
+    bms = rows[0]["evals"][rows[0]["base"]].keys()
     lines = ["| task | setting | improver | " + " | ".join(bms) + " | final (H/M) | tool calls | seconds |",
              "|---|---|---|" + "---|" * len(bms) + "---|---|---|"]
     base = rows[0]["evals"][rows[0]["base"]]
@@ -74,7 +80,10 @@ def main(argv=None) -> int:
         p.add_argument("--rounds", type=int, default=10)
         p.add_argument("--round-hours", type=float, default=3.0)
         p.add_argument("--trials", type=int, default=3)
-        p.add_argument("--benchmarks", default="mini-gpqa,mini-aime,mini-terminal,mini-simpleqa")
+        p.add_argument("--benchmarks", help="comma list; default depends on the task")
+        p.add_argument("--concurrency", type=int, default=1, help="parallel evaluation trials")
+        p.add_argument("--context-window", type=int, default=262_144)
+        p.add_argument("--command-timeout", type=float, default=1800.0, help="per bash command (s)")
         p.add_argument("--target-model", help="model spec JSON (file or inline); default: toy")
         p.add_argument("--teacher-model", help="Teacher model spec JSON (file or inline)")
         p.add_argument("--teacher-harness", help="Teacher harness directory (default: minimal harness)")
@@ -87,7 +96,7 @@ def main(argv=None) -> int:
     p.add_argument("--improver", default="self", choices=["self", "teacher"])
     common(p)
     p = sub.add_parser("matrix", help="run several tasks x improvers and tabulate")
-    p.add_argument("--tasks", default=",".join(TASKS))
+    p.add_argument("--tasks", default=",".join(t for t in TASKS if t not in ("redteam", "research")))
     p.add_argument("--improvers", default="self,teacher")
     common(p)
     sub.add_parser("tasks", help="list the seven tasks")

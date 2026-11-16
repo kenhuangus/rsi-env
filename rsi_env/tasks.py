@@ -136,6 +136,16 @@ OBJ_RESEARCH = (
     "sources in favor of the most recent authoritative one, and verify the final answer against the documents. "
     "Preserve the agent's other capabilities. See docs/DOMAIN.md for the practice collection."
 )
+OBJ_RESEARCH_PRO = (
+    "Improve the live agent's deep-research ability on a HARD, multi-faceted question set. The questions span "
+    "several independent skills: long (5-hop) chains that need a running fact ledger; counting, listing and "
+    "arithmetic that are far more reliable when the agent writes a small script over the corpus than when it "
+    "fetches pages one by one; selecting the most recent of several dated corrections for some questions, yet a "
+    "specific named dated source for others; superlatives using corrected values; and disambiguating entities "
+    "that share a name before answering. No single instruction solves all of them - diagnose the live agent's "
+    "distinct failure modes from its transcripts and improve the harness one justified step at a time. Preserve "
+    "the agent's other capabilities. See docs/DOMAIN.md for the practice collection."
+)
 
 TASKS: dict[str, Task] = {
     # Real-world domain tasks (Capability-Directed style: broad goal, no benchmark name, no feedback)
@@ -143,6 +153,8 @@ TASKS: dict[str, Task] = {
                     target_benchmarks=("redteam-ctf",)),
     "research": Task("research", "capability-directed", OBJ_RESEARCH, capability="research",
                      target_benchmarks=("research-qa",)),
+    "research-pro": Task("research-pro", "capability-directed", OBJ_RESEARCH_PRO, capability="research_pro",
+                         target_benchmarks=("research-pro",)),
     # Open-General
     "general": Task("general", "open-general", OBJECTIVE_OPEN_GENERAL, capability="general"),
     # Capability-Directed

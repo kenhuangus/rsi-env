@@ -25,8 +25,18 @@ This repository provides:
   2. a **real red-team agent** (local open-weight LLM) improving itself against simulated, guarded
      LLM applications: **50% → 100%** on 16 unseen private targets;
   3. a **real deep-research agent** (same LLM) improving itself on multi-hop research questions:
-     **82.1% → 100%** on 28 unseen private questions;
-* 51 automated tests, reference results, and the tutorial below.
+     **82.1% → 100%** on 28 unseen private questions, plus a **harder `research-pro` benchmark** (§7.6)
+     with eight independent difficulty axes, built so the agent improves its harness over *several*
+     rounds rather than saturating in one;
+* a **practical mode** (§7.7): point a self-improved harness at your own documents or an
+  authorized endpoint and use it for real research and red teaming (`python -m rsi_env.apps`);
+* 67 automated tests, reference results, and the tutorial below.
+
+**Two goals, kept together.** Each agent must be *self-improving* (it rewrites its own harness and the
+controller accepts the better version) **and** *practical* (the same improved harness is directly usable
+on real work). The benchmark is the training ground; the app layer runs the accepted harness on your
+real corpus or endpoint with the identical tool interface it learned on. Model weights never change
+(the local MLX server cannot train), so every gain is in the harness.
 
 ![RSI-Env architecture](docs/diagrams/architecture.svg)
 
@@ -106,6 +116,17 @@ python -m rsi_env matrix --out runs\matrix
 # real-world examples (need an OpenAI-compatible LLM endpoint; see section 7)
 python -m rsi_env run --task redteam  --target-model examples\clover-macmini.json --context-window 65536
 python -m rsi_env run --task research --target-model examples\clover-macmini.json --context-window 65536
+
+# harder benchmark, built for multi-round self-improvement (section 7.6)
+python -m rsi_env run --task research-pro --target-model examples\clover-macmini.json `
+  --rounds 8 --round-hours 1 --trials 2 --concurrency 4 --context-window 65536 --out runs\research-pro-self
+
+# practical mode: use a self-improved harness on REAL work (section 7.7)
+python -m rsi_env.apps research --from-run runs\research-pro-self `
+  --docs C:\path\to\my_documents --question "..." --model examples\clover-macmini.json
+python -m rsi_env.apps redteam  --from-run runs\redteam-self `
+  --endpoint https://my-app.internal/chat --goal "recover the guarded secret" --authorized `
+  --model examples\clover-macmini.json
 
 # tests
 python -m pytest -q
@@ -638,6 +659,103 @@ and applied identically to all versions; no agent behavior was hand-tuned.
 * Model weights are unchanged in both runs (M0): training is not available for a model served by a
   local MLX server, so the Improver could only change the harness.
 
+### 7.6 A harder benchmark built for multi-round self-improvement (`research-pro`)
+
+Both runs above reached 100% after a **single** accepted harness update, then stopped — one recursive
+step, not a chain. The reason is that one good system-prompt protocol is enough to solve the whole
+benchmark. `research-pro` (`rsi_env/domains/research_pro.py`, task `research-pro`, private suite
+`research-pro`) is designed so that cannot happen: it mixes **eight independent difficulty axes**, and no
+single harness edit addresses all of them, so under a Self Improver the loop keeps finding justified
+updates round after round. It is the same world idea as the research example but larger (≈300 documents
+with distractors) and much harder:
+
+| Axis | What it needs | Why one fix is not enough |
+|---|---|---|
+| P1 | 5-hop chains (device → org → HQ → country → capital → river) | a running fact ledger; easy to lose track |
+| P2 | the value in the **most recent** of several dated corrections | recency selection across conflicting sources |
+| P3 | filtered counts (devices after a year, in a field) | reliable only if the agent writes a script over the corpus |
+| P4 | arithmetic combining **two** separate aggregations | a multi-step quantitative plan |
+| P5 | the **exhaustive** list of items (graded by exact set equality) | completeness, not answer-and-stop |
+| P6 | earliest-founded org, using **corrected** years | superlative *and* correction together |
+| P7 | the value stated by a **specific** dated correction (not the latest) | directly contradicts the P2 "take the newest" instinct |
+| P8 | disambiguate two researchers who share a first name, then answer | entity disambiguation before answering |
+
+P2 and P7 are deliberately in tension: a blanket "always use the newest correction" rule wins P2 and
+loses P7, so the agent must learn a more careful reading — exactly the kind of refinement that takes more
+than one round. The private set draws 40 questions (5 per axis) from a salted split that is disjoint from
+the public `dev` set the Improver tunes on. The agent is still only ever allowed to change its harness;
+weights stay at M0.
+
+*(The round-by-round result of a Self run on `research-pro` is added here when the run completes.)*
+
+### 7.7 Practical mode: use a self-improved agent on real work (`rsi_env/apps.py`)
+
+A self-improvement run produces an **accepted harness** — `harness.py` (the loop) and `harness.json` (the
+system prompt and settings the agent rewrote for itself). Because the harness drives whatever tools sit in
+its working directory, the *same* improved harness can be pointed at real inputs with the identical tool
+interface it trained on, so the learned strategy transfers. That is what makes the agents useful, not just
+benchmarked.
+
+**Research over your own documents.** Builds the same `corpus.json` + BM25 `search.py` / `fetch.py` from a
+folder of your files (`.md`, `.txt`, `.json`/`.jsonl`, `.csv`, …; large files are chunked), then runs the
+harness:
+
+```powershell
+python -m rsi_env.apps research --from-run runs\research-pro-self `
+  --docs C:\Users\kenhu\my_notes --question "Which project started earliest, and who led it?" `
+  --model examples\clover-macmini.json
+```
+
+**Authorized red teaming of a real endpoint.** Generates a `send.py` that posts to a chat endpoint **you
+are permitted to test**, then runs the red-team harness. The request/response shape is configurable
+(`--message-field`, `--doc-field`, `--reply-path`, `--header`, `--extra-json`), and `--authorized` is
+required to confirm permission:
+
+```powershell
+python -m rsi_env.apps redteam --from-run runs\redteam-self `
+  --endpoint https://my-app.internal/chat --goal "recover the guarded secret" --authorized `
+  --message-field prompt --reply-path choices.0.message.content --model examples\clover-macmini.json
+```
+
+Both commands print the full tool trace and the final answer. With neither `--from-run` nor `--harness`
+they use the minimal seed harness, so you can compare the seed agent against a self-improved one on the
+same real task. Only test systems you own or are explicitly authorized to assess.
+
+### 7.8 Top published benchmarks (`rsi_env/benchmarks/published.py`, `docs/BENCHMARKS.md`)
+
+Beyond the synthetic domains, the agents can be measured on, and improved against, the **standard
+benchmarks the field reports**. The loaders convert each dataset's official released format into the
+agent's item schema; because these questions ship with their own supporting documents, the agent uses its
+own `search.py` / `fetch.py` over them, so evaluation is offline and fair (no live web, no leakage).
+
+**Deep research — multi-hop QA with supporting documents:**
+
+| Benchmark | Reference | License | Loader |
+|---|---|---|---|
+| HotpotQA (distractor) | Yang et al., EMNLP 2018 | CC BY-SA 4.0 | `hotpotqa` |
+| 2WikiMultiHopQA | Ho et al., COLING 2020 | Apache-2.0 | `2wiki` |
+| MuSiQue-Answerable | Trivedi et al., TACL 2022 | CC BY 4.0 | `musique` |
+
+Answers are graded with the standard **SQuAD exact-match / token-F1** metric these benchmarks report.
+Download the official dev split (one line each in `docs/BENCHMARKS.md`) and score any harness:
+
+```powershell
+python -m rsi_env.apps research-bench --benchmark hotpotqa --data data\hotpot_dev_distractor_v1.json `
+  --n 100 --model examples\clover-macmini.json                       # seed agent
+python -m rsi_env.apps research-bench --benchmark hotpotqa --data data\hotpot_dev_distractor_v1.json `
+  --n 100 --from-run runs\research-pro-self --model examples\clover-macmini.json   # self-improved agent
+```
+
+The agentic/web benchmarks (GAIA, BrowseComp, FRAMES) need live browsing; they fit the same harness via a
+web-backed `search.py`/`fetch.py` and are a planned web-mode addition rather than part of the offline set.
+
+**Red teaming — prompt injection / secret extraction** (matching the authorized, secret-extraction framing
+of §7.2, not harmful-content elicitation): Gandalf (Lakera, 2023), TensorTrust (Toyer et al., ICLR 2024),
+AgentDojo (Debenedetti et al., NeurIPS 2024) and InjecAgent (Zhan et al., 2024). These plug into the same
+adapter as **local, LLM-backed guarded targets** — the defender model runs on your own server and the agent
+tries to recover the guarded secret through `send.py`, reusing the target pattern from
+`rsi_env/domains/redteam.py`. See `docs/BENCHMARKS.md`.
+
 ---
 
 ## 8. Running at paper scale
@@ -740,19 +858,22 @@ rsi_env/
   runner.py            Experiment Controller (round loop, Self/Teacher, reports)
   cli.py, __main__.py  `python -m rsi_env run | matrix | tasks | prompt`
   envcli.py            `rsi` client used inside the RSI Environment
+  apps.py              practical mode: run a self-improved harness on real docs / an authorized endpoint
   runtime.py           sandboxed bash tool, persisted outputs, protected-path guard
   worker.py            isolated process: check | eval | improve
   harness_template/    H0 minimal harness (harness.py, harness.json)
   controller/          host.py (services), server.py (controlled interfaces),
                        versioning.py (H/M lineage), training.py (train-sft), evaluation.py
   benchmarks/          suites.py (mini-suites + salted private domain suites, avg@k / pass@k / all@k),
-                       world.py (public corpus)
+                       published.py (HotpotQA / 2Wiki / MuSiQue loaders + SQuAD grading), world.py
   domains/             redteam.py (guarded-assistant targets, send.py server, grading),
-                       research.py (document world, search/fetch tools, multi-hop questions)
+                       research.py (document world, search/fetch tools, multi-hop questions),
+                       research_pro.py (harder 8-axis benchmark for multi-round self-improvement)
   models/              toy.py, toy_policy.py, openai_compat.py (native tools), anthropic_backend.py
-tests/                 51 tests: metrics, prompts, harness and XML tool-call parsing, runtime and
+tests/                 73 tests: metrics, prompts, harness and XML tool-call parsing, runtime and
                        sandbox-policy guards, controller services, validity/contamination/feedback
-                       gating, version identity, domains, native-tool mapping, end-to-end runs
+                       gating, version identity, domains, research-pro axes, practical apps,
+                       published-benchmark loaders + SQuAD grading, native-tool mapping, end-to-end runs
 docs/diagrams/         SVG figures used in this README
 docs/results/          reference outputs: toy matrix and case study; redteam/ and research/ (reports,
                        Improver journals, accepted harnesses, sample private transcripts);
@@ -762,7 +883,7 @@ examples/              model specs: vLLM Qwen target, Clover (MLX server), DeepS
 ```
 
 ```powershell
-python -m pytest -q        # 51 passed
+python -m pytest -q        # 73 passed
 ```
 
 ## Citation

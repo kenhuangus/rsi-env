@@ -31,7 +31,7 @@ def make_config(a) -> RunConfig:
 
 
 DEFAULT_BENCHMARKS = "mini-gpqa,mini-aime,mini-terminal,mini-simpleqa"
-DOMAIN_BENCHMARKS = {"redteam": "redteam-ctf", "research": "research-qa"}
+DOMAIN_BENCHMARKS = {"redteam": "redteam-ctf", "research": "research-qa", "research-pro": "research-pro"}
 
 
 def cmd_run(a) -> None:
@@ -96,7 +96,7 @@ def main(argv=None) -> int:
     p.add_argument("--improver", default="self", choices=["self", "teacher"])
     common(p)
     p = sub.add_parser("matrix", help="run several tasks x improvers and tabulate")
-    p.add_argument("--tasks", default=",".join(t for t in TASKS if t not in ("redteam", "research")))
+    p.add_argument("--tasks", default=",".join(t for t in TASKS if t not in ("redteam", "research", "research-pro")))
     p.add_argument("--improvers", default="self,teacher")
     common(p)
     sub.add_parser("tasks", help="list the seven tasks")

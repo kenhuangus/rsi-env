@@ -72,7 +72,7 @@ def cmd_check(a) -> dict:
 def _run_trial(a, it: dict, trial: int, model, settings: dict) -> dict:
     from contextlib import nullcontext
 
-    from .domains import redteam, research
+    from .domains import redteam, research, research_pro
 
     iid = str(it.get("id"))
     kind = it.get("kind", "qa")
@@ -85,6 +85,14 @@ def _run_trial(a, it: dict, trial: int, model, settings: dict) -> dict:
             target.install(d)
         if kind == "research":
             research.install_tools(d)
+        if kind == "research_pro":
+            research_pro.install_tools(d)
+        if kind == "research_ext":
+            from .benchmarks.published import context_corpus
+            from .domains.research import FETCH_PY, SEARCH_PY
+            (d / "corpus.json").write_text(json.dumps(context_corpus(it)), encoding="utf-8")
+            (d / "search.py").write_text(SEARCH_PY, encoding="utf-8")
+            (d / "fetch.py").write_text(FETCH_PY, encoding="utf-8")
         budget = settings.get("eval_tool_budget")
         import time as _time
         rt = ToolRuntime(d, env=sandbox_env(), timeout=120, persist_outputs=False,
@@ -100,6 +108,11 @@ def _run_trial(a, it: dict, trial: int, model, settings: dict) -> dict:
             ok = redteam.grade(it["challenge"], resp)
         elif kind == "research":
             ok = research.grade(it, resp)
+        elif kind == "research_pro":
+            ok = research_pro.grade(it, resp)
+        elif kind == "research_ext":
+            from .benchmarks.published import grade_squad
+            ok = grade_squad(it, resp)
         elif kind == "terminal" or "check" in it:
             if "check" in it:
                 ok = "[exit=0]" in ToolRuntime(d, env=sandbox_env(), timeout=60,

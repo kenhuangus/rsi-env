@@ -20,12 +20,12 @@ def test_grading_variants():
 
 
 def test_seven_paper_tasks_three_settings_plus_domains():
-    paper = {k: t for k, t in TASKS.items() if t.capability not in ("redteam", "research")}
+    paper = {k: t for k, t in TASKS.items() if t.capability not in ("redteam", "research", "research_pro")}
     assert len(paper) == 7
     assert {t.setting for t in paper.values()} == {"open-general", "capability-directed", "benchmark-guided"}
     assert sum(t.setting == "capability-directed" for t in paper.values()) == 3
     assert sum(t.setting == "benchmark-guided" for t in paper.values()) == 3
-    for name in ("redteam", "research"):  # real-world domains: broad goal, no benchmark feedback
+    for name in ("redteam", "research", "research-pro"):  # real-world domains: broad goal, no benchmark feedback
         assert TASKS[name].setting == "capability-directed" and not TASKS[name].feedback_benchmarks
 
 

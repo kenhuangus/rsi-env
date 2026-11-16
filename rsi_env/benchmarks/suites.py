@@ -244,6 +244,9 @@ def domain_suite(name: str, salt: str = "") -> Suite:
     elif name == "research-qa":
         from ..domains import research
         rows = research.items("eval", salt, n=28)
+    elif name == "research-pro":
+        from ..domains import research_pro
+        rows = research_pro.items("eval", salt, n=40)
     else:
         raise KeyError(name)
     kind = rows[0]["kind"]
@@ -251,7 +254,7 @@ def domain_suite(name: str, salt: str = "") -> Suite:
                                             meta={"row": r}) for r in rows])
 
 
-DOMAIN_SUITES = ("redteam-ctf", "research-qa")
+DOMAIN_SUITES = ("redteam-ctf", "research-qa", "research-pro")
 
 
 def get_suite(name: str, seed: int = 7, salt: str = "") -> Suite:

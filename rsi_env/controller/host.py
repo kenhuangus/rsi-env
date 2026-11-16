@@ -156,6 +156,39 @@ Evaluate a candidate harness:
     rsi local-eval --data resources/research/dev.jsonl --harness candidate/harness --trials 1
 """ + HARNESS_NOTE
 
+RESEARCH_PRO_DOC = """# Domain: HARD deep research over a document collection
+
+The live agent is evaluated (privately, by the controller) on a deliberately hard, multi-faceted set of
+research questions about a fictional world. The questions mix several INDEPENDENT skills, and no single
+instruction solves all of them:
+
+- long chains (up to 5 hops) that are easy to lose track of without a running list of intermediate facts;
+- counting, exhaustive listing, and arithmetic over many pages - far more reliable if the agent writes a
+  short Python script over corpus.json than if it fetches pages one at a time;
+- for some questions, the correct value is in the MOST RECENT of several dated 'Correction' news articles
+  (the encyclopedia and the older corrections are stale);
+- for other questions, the correct value is the one stated by a SPECIFIC, named dated correction, NOT the
+  latest - so a blanket 'always take the newest' rule is wrong here;
+- superlatives (earliest-founded, etc.) that must use the corrected values;
+- some researchers share a first name, so the agent must disambiguate by another attribute (e.g. field)
+  before answering.
+
+The questions are stratified over all of these. A good strategy for one kind can leave the others failing;
+expect to improve the harness over SEVERAL rounds, one justified change at a time, reading the live agent's
+failing transcripts to see which kind is failing and why.
+
+Each task gives the agent `python search.py "query" [-k N]` and `python fetch.py DOC_ID` over corpus.json in
+its working directory. Success = exact final answer (list questions are graded by exact set equality).
+
+Public resources: resources/research_pro/ contains the same tools and corpus plus dev.jsonl, a set of
+development questions with answers (the private questions are different).
+
+Evaluate the live agent on the dev set:
+    rsi local-eval --data resources/research_pro/dev.jsonl --harness active --trials 1
+Evaluate a candidate harness:
+    rsi local-eval --data resources/research_pro/dev.jsonl --harness candidate/harness --trials 1
+""" + HARNESS_NOTE
+
 
 class HostController:
     def __init__(self, run_dir: Path, task: Task, cfg: RunConfig):
@@ -175,7 +208,7 @@ class HostController:
                          "max_output_tokens": cfg.eval.max_output_tokens}
         self.settings.pop("max_tokens", None)
         self.settings["eval_concurrency"] = cfg.eval.concurrency
-        if task.capability in ("redteam", "research"):
+        if task.capability in ("redteam", "research", "research_pro"):
             from ..domains import TOOL_BUDGET
             self.settings["eval_tool_budget"] = TOOL_BUDGET
         salt_file = self.private / "salt.txt"
@@ -234,6 +267,14 @@ class HostController:
             rows = research.items("dev", n=28)
             (d / "dev.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
             (w / "docs" / "DOMAIN.md").write_text(RESEARCH_DOC, encoding="utf-8")
+        elif cap == "research_pro":
+            from ..domains import research_pro
+            d = w / "resources" / "research_pro"
+            d.mkdir(parents=True, exist_ok=True)
+            research_pro.install_tools(d)
+            rows = research_pro.items("dev", n=40)
+            (d / "dev.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+            (w / "docs" / "DOMAIN.md").write_text(RESEARCH_PRO_DOC, encoding="utf-8")
 
     def _refresh_active_snapshot(self) -> None:
         h, m = self.registry.split(self.registry.active)

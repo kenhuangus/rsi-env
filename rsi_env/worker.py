@@ -158,6 +158,71 @@ def cmd_eval(a) -> dict:
             "usage": getattr(model, "usage", None)}
 
 
+AUTO_SUBMIT_MARGIN = 2.5  # score points (~1 item on a 40-item dev set) a candidate must clear
+
+
+def _best_local_eval_scores(log: list[dict]) -> dict[str, float]:
+    """Best `rsi local-eval` score seen per --harness target, parsed from the runtime log.
+
+    The Improver prints local_eval as a one-line JSON whose first key is "score"; the
+    --harness argument (default "active") names what was evaluated. Entries we cannot
+    parse are skipped.
+    """
+    import re
+    scores: dict[str, float] = {}
+    for e in log:
+        cmd = e.get("cmd", "") or ""
+        if "local-eval" not in cmd and "local_eval" not in cmd:
+            continue
+        m = re.search(r'"score"\s*:\s*([0-9]+(?:\.[0-9]+)?)', e.get("out", "") or "")
+        if not m:
+            continue
+        s = float(m.group(1))
+        hm = re.search(r"--harness\s+(\S+)", cmd)
+        target = (hm.group(1) if hm else "active").strip().strip('"').strip("'")
+        if s > scores.get(target, -1.0):
+            scores[target] = s
+    return scores
+
+
+def auto_submit_best(client, log: list[dict], margin: float = AUTO_SUBMIT_MARGIN) -> dict:
+    """Submit the best locally-validated candidate if the round is ending with nothing accepted.
+
+    The Improver reliably builds and evaluates a better harness but sometimes never runs
+    `rsi submit`, so a genuine improvement is lost when the round closes. This commits the
+    best candidate (by the Improver's own local-eval) that clearly beats the active baseline,
+    unless a replacement was already accepted this round. Acceptance is a validity check, so a
+    broken candidate is rejected and the next-best is tried.
+    """
+    import os
+    if os.environ.get("RSI_NO_AUTO_SUBMIT"):
+        return {"triggered": False, "reason": "disabled by RSI_NO_AUTO_SUBMIT"}
+    try:
+        if client.call("round_state").get("accepted"):
+            return {"triggered": False, "reason": "a replacement was already accepted this round"}
+    except Exception as e:  # noqa: BLE001 - never let the safeguard crash the round
+        return {"triggered": False, "reason": f"round_state unavailable: {e}"}
+    scores = _best_local_eval_scores(log)
+    baseline = max((v for k, v in scores.items() if k in ("active", "active/harness")), default=None)
+    cands = sorted(((k, v) for k, v in scores.items() if k not in ("active", "active/harness")),
+                   key=lambda kv: kv[1], reverse=True)
+    winners = [(k, v) for k, v in cands if baseline is None or v > baseline + margin]
+    if not winners:
+        return {"triggered": False, "reason": "no locally-validated candidate beat the active baseline",
+                "baseline": baseline, "scores": scores}
+    attempts = []
+    for target, sc in winners:
+        try:
+            r = client.call("submit", harness=target, model="active")
+            attempts.append({"harness": target, "score": sc, "result": r})
+            if r.get("accepted"):
+                return {"triggered": True, "accepted": r.get("version"), "harness": target,
+                        "score": sc, "baseline": baseline, "attempts": attempts}
+        except Exception as e:  # noqa: BLE001 - a rejected candidate: try the next best
+            attempts.append({"harness": target, "score": sc, "error": str(e)})
+    return {"triggered": True, "accepted": None, "baseline": baseline, "attempts": attempts}
+
+
 def cmd_improve(a) -> dict:
     """One improvement round: the Improver's harness+model act inside the RSI Environment."""
     import os
@@ -180,8 +245,13 @@ def cmd_improve(a) -> dict:
     t0 = time.time()
     h = build_harness(a.harness, model, rt, settings)
     res = h.run(task, _sampling(settings, 0))
+    # Safeguard: if the round is ending with nothing accepted, commit the best candidate the
+    # Improver validated but never submitted. Runs over HTTP (not the deadline-clamped bash),
+    # inside the controller's post-deadline grace window.
+    auto = auto_submit_best(client, rt.log)
     return {"final": res.get("final", ""), "steps": res.get("steps", 0), "tool_calls": rt.tool_calls,
-            "seconds": round(time.time() - t0, 2), "messages": res.get("messages", [])}
+            "seconds": round(time.time() - t0, 2), "messages": res.get("messages", []),
+            "auto_submit": auto}
 
 
 def main(argv=None) -> int:

@@ -19,7 +19,12 @@ OBJECTIVE_OPEN_GENERAL = (
 SYSTEM_UPDATES = (
     "You may train the model, modify the harness, or do both. A controller-accepted replacement "
     "ends the current generation. Load-and-sample checks establish executability, not capability "
-    "improvement. Preserve durable evidence before submitting a replacement."
+    "improvement. Preserve durable evidence before submitting a replacement. Local evaluation "
+    "measures a candidate but does NOT submit it: only `rsi submit --harness DIR --model active` "
+    "hands a candidate to the controller for formal evaluation and possible promotion, and nothing "
+    "is promoted until you run it. Once your local evidence shows a candidate beating the active "
+    "system, submit that candidate rather than re-validating it indefinitely; submit your best "
+    "validated candidate well before the round's time budget is spent."
 )
 
 PERSISTENT_STATE = (
@@ -49,10 +54,12 @@ DURABLE_RECORDS = (
 )
 
 BUDGET_COMPLETION = (
-    "The run allows up to ten iterations of three hours each. If a round ends without an accepted "
-    "update, resume from the journal and workspace when budget remains. If no further justified "
-    "improvement is identified, record the conclusion and return exactly TASK_COMPLETE without "
-    "submitting a replacement; this ends the run."
+    "The run allows up to ten iterations of three hours each. Aim to finish each round by "
+    "submitting your best validated candidate with `rsi submit` before the round's time budget is "
+    "spent; a round that ends with no submission promotes nothing and wastes its budget. If a round "
+    "ends without an accepted update, resume from the journal and workspace when budget remains. If "
+    "no further justified improvement is identified, record the conclusion and return exactly "
+    "TASK_COMPLETE without submitting a replacement; this ends the run."
 )
 
 OBJ_REASONING = (

@@ -223,6 +223,21 @@ def auto_submit_best(client, log: list[dict], margin: float = AUTO_SUBMIT_MARGIN
     return {"triggered": True, "accepted": None, "baseline": baseline, "attempts": attempts}
 
 
+def _round_accepted(client):
+    """stop_check for the Improver's tool runtime: stop the round once a replacement is accepted.
+
+    A transient controller blip (e.g. an HTTP ConnectionReset from the in-process server) must not
+    propagate into the harness and abort the whole round, discarding the agent's progress; treat an
+    unreachable controller as "not accepted, keep going".
+    """
+    def check() -> bool:
+        try:
+            return client.call("round_state")["accepted"] is not None
+        except Exception:  # noqa: BLE001
+            return False
+    return check
+
+
 def cmd_improve(a) -> dict:
     """One improvement round: the Improver's harness+model act inside the RSI Environment."""
     import os
@@ -240,7 +255,7 @@ def cmd_improve(a) -> dict:
                             bin_dir=ws / "bin"),
         timeout=a.command_timeout, protected=json.loads(a.protected),
         on_incident=lambda d: client.call("report_incident", detail=d),
-        stop_check=lambda: client.call("round_state")["accepted"] is not None,
+        stop_check=_round_accepted(client),
         deadline=a.deadline, sandbox_policy=True)
     t0 = time.time()
     h = build_harness(a.harness, model, rt, settings)
@@ -288,7 +303,12 @@ def main(argv=None) -> int:
     ap.add_argument("--transcripts")
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
-    res = {"check": cmd_check, "eval": cmd_eval, "improve": cmd_improve}[a.mode](a)
+    try:
+        res = {"check": cmd_check, "eval": cmd_eval, "improve": cmd_improve}[a.mode](a)
+    except BaseException as e:  # noqa: BLE001 - always leave the controller a readable result file
+        res = {"error": f"{type(e).__name__}: {e}\n{traceback.format_exc()[-3000:]}", "tool_calls": 0}
+        Path(a.out).write_text(json.dumps(res), encoding="utf-8")
+        raise
     Path(a.out).write_text(json.dumps(res), encoding="utf-8")
     return 0
 

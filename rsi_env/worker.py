@@ -244,14 +244,31 @@ def cmd_improve(a) -> dict:
         deadline=a.deadline, sandbox_policy=True)
     t0 = time.time()
     h = build_harness(a.harness, model, rt, settings)
-    res = h.run(task, _sampling(settings, 0))
+    # The agent harness can raise at the end of a round (a malformed model reply, an unhandled
+    # tool error). If it did, we must STILL run the submit safeguard and STILL write round output:
+    # otherwise a candidate the Improver already validated is lost and the round leaves no trace.
+    res: dict = {}
+    run_error = None
+    try:
+        res = h.run(task, _sampling(settings, 0))
+    except BaseException as e:  # noqa: BLE001 - capture, don't let a harness crash sink the round
+        import traceback
+        run_error = f"{type(e).__name__}: {e}\n{traceback.format_exc()[-3000:]}"
     # Safeguard: if the round is ending with nothing accepted, commit the best candidate the
     # Improver validated but never submitted. Runs over HTTP (not the deadline-clamped bash),
-    # inside the controller's post-deadline grace window.
-    auto = auto_submit_best(client, rt.log)
-    return {"final": res.get("final", ""), "steps": res.get("steps", 0), "tool_calls": rt.tool_calls,
-            "seconds": round(time.time() - t0, 2), "messages": res.get("messages", []),
-            "auto_submit": auto}
+    # inside the controller's post-deadline grace window. Runs even when the harness crashed.
+    try:
+        auto = auto_submit_best(client, rt.log)
+    except BaseException as e:  # noqa: BLE001 - the safeguard itself must never sink the round
+        import traceback
+        auto = {"triggered": False, "reason": f"auto_submit crashed: {e}",
+                "traceback": traceback.format_exc()[-2000:]}
+    out = {"final": res.get("final", ""), "steps": res.get("steps", 0), "tool_calls": rt.tool_calls,
+           "seconds": round(time.time() - t0, 2), "messages": res.get("messages", []),
+           "auto_submit": auto}
+    if run_error:
+        out["run_error"] = run_error
+    return out
 
 
 def main(argv=None) -> int:

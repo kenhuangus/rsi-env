@@ -53,6 +53,8 @@ class Experiment:
                 self.log(f"[round {r}] active={host.registry.active} improver={improver_id}")
                 res = self._run_round(host, srv, hdir, spec, prompt, r, traj_dir)
                 total_calls += res.get("tool_calls", 0)
+                if not host.accepted_this_round:
+                    self._auto_submit_round(host, r)
                 if host.accepted_this_round:
                     res["final"] = f"submitted; accepted as {host.accepted_this_round}"
                 info = {"round": r, "improver": improver_id, "accepted": host.accepted_this_round,
@@ -95,6 +97,49 @@ class Experiment:
         if not out.exists():
             return {"error": (p.stderr or "improver produced no output")[-1500:]}
         return json.loads(out.read_text(encoding="utf-8"))
+
+    def _auto_submit_round(self, host, r: int) -> None:
+        """Controller-side backstop: if a round ended with nothing accepted, submit the best
+        locally-validated candidate the Improver built but never handed over.
+
+        The in-worker safeguard (worker.auto_submit_best) only runs if the agent's harness returns
+        before the deadline. When a single local-eval takes many minutes, the worker can be killed
+        at the deadline mid-eval, so that safeguard is lost and a validated candidate is discarded.
+        This runs in the controller process, which survives the worker kill and reads the round's
+        local-eval audit plus the persisted candidate directories. Acceptance is a validity check,
+        so a broken/identical candidate is rejected and the next best is tried.
+        """
+        from .worker import AUTO_SUBMIT_MARGIN
+        if os.environ.get("RSI_NO_AUTO_SUBMIT"):
+            return
+        audit_p = host.private / "audit.jsonl"
+        if not audit_p.exists():
+            return
+        scores: dict[str, float] = {}
+        for line in audit_p.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                e = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if e.get("round") != r or e.get("event") != "local-eval":
+                continue
+            tgt, s = e.get("harness", "active"), e.get("score")
+            if isinstance(s, (int, float)) and float(s) > scores.get(tgt, -1.0):
+                scores[tgt] = float(s)
+        baseline = scores.get("active", scores.get("active/harness"))
+        cands = sorted(((k, v) for k, v in scores.items() if k not in ("active", "active/harness")),
+                       key=lambda kv: kv[1], reverse=True)
+        winners = [(k, v) for k, v in cands if baseline is None or v > baseline + AUTO_SUBMIT_MARGIN]
+        for target, sc in winners:
+            try:
+                host.submit(harness=target, model="active", improver="self-auto")
+                self.log(f"[round {r}] controller auto-submit accepted {target} "
+                         f"(local {sc:.1f} vs baseline {baseline}) -> {host.accepted_this_round}")
+                return
+            except Exception as e:  # noqa: BLE001 - rejected (broken/identical): try the next best
+                self.log(f"[round {r}] controller auto-submit of {target} rejected: {str(e)[:140]}")
 
     def _evaluate(self, host: HostController, rounds, total_calls, elapsed) -> dict:
         versions = [v["id"] for v in host.registry.lineage()]
